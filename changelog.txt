@@ -1,0 +1,1 @@
+v1.0.0.29: Added complete support for MFT record size of 4096 bytes. Added new switch for extracting record to file.

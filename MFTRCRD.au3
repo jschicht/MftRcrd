@@ -1,10 +1,9 @@
 #RequireAdmin
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump
 #AutoIt3Wrapper_Res_Description=Decode a file's attributes from $MFT
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.28
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.29
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -13,10 +12,11 @@
 #include <Array.au3>
 #Include <String.au3>
 ;
+; https://github.com/jschicht
 ; http://code.google.com/p/mft2csv/
 ;
 Global $ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ResidentIndx, $_COMMON_KERNEL32DLL=DllOpen("kernel32.dll")
-Global $BrowsedFile,$TargetDrive = "", $ALInnerCouner, $MFTSize, $TargetIsOffset=0,$TargetOffset
+Global $BrowsedFile,$TargetDrive = "", $ALInnerCouner, $MFTSize, $TargetIsOffset=0,$TargetOffset,$DoExtraction=0
 Global $SectorsPerCluster,$MFT_Record_Size,$BytesPerCluster,$BytesPerSector,$MFT_Offset
 Global $HEADER_LSN,$HEADER_SequenceNo,$HEADER_Flags,$HEADER_RecordRealSize,$HEADER_RecordAllocSize,$HEADER_BaseRecord
 Global $HEADER_NextAttribID,$HEADER_MFTREcordNumber
@@ -90,7 +90,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.28" & @CRLF)
+ConsoleWrite("Version 1.0.0.29" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -126,29 +126,40 @@ Exit
 
 Func _validate_parameters()
 Local $FileAttrib
-If $cmdline[0] <> 3 Then
+If $cmdline[0] <> 5 Then
 	ConsoleWrite("Error: Wrong number of parameters supplied: " & $cmdline[0] & @CRLF)
 	ConsoleWrite("" & @CRLF)
-	ConsoleWrite('Usage: "MFTRCRD param1 param2 param3"' & @CRLF)
+	ConsoleWrite('Usage: "MFTRCRD param1 param2 param3 param4"' & @CRLF)
 	ConsoleWrite("" & @CRLF)
-	ConsoleWrite("param1 can be a valid file/folder path or an IndexNumber ($MFT record number)" & @CRLF)
-	ConsoleWrite("param2 can be -d or -a: " & @CRLF)
+	ConsoleWrite("param1 can be a valid file/folder path, an IndexNumber ($MFT record number), or volume and offset" & @CRLF)
+	ConsoleWrite("param2 is a switch (-d|-a) " & @CRLF)
 	ConsoleWrite("	-d means decode $MFT entry " & @CRLF)
 	ConsoleWrite("	-a same as -d but also display formatted hexdump of $MFT record and individual attributes " & @CRLF)
-	ConsoleWrite("" & @CRLF)
+	;ConsoleWrite("" & @CRLF)
 	ConsoleWrite("param3 for specifying wether to hexdump complete INDX records and can be either indxdump=on or indxdump=off. Beware that indxdump=on may generate a significant amount of dump to console for certain directories." & @CRLF)
+	;ConsoleWrite("" & @CRLF)
+	ConsoleWrite("param4 is the MFT record size (1024 or 4096). Only relevant when param1 is an offset" & @CRLF)
+	ConsoleWrite("param5 is a switch (-s|-w)." & @CRLF)
+	ConsoleWrite("	-s means to skip extraction of the binary record" & @CRLF)
+	ConsoleWrite("	-w will extract the record in binary format to the current directory" & @CRLF)
 	ConsoleWrite("" & @CRLF)
 	ConsoleWrite("Example for dumping an $MFT decode for boot.ini:" & @CRLF)
-	ConsoleWrite("MFTRCRD C:\boot.ini -d indxdump=off" & @CRLF)
+	ConsoleWrite("MFTRCRD C:\boot.ini -d indxdump=off 1024 -s" & @CRLF)
 	ConsoleWrite("" & @CRLF)
 	ConsoleWrite("Example for dumping an $MFT decode + the $MFT record and individual attributes for $MFT itself from the C: drive:" & @CRLF)
-	ConsoleWrite("MFTRCRD C:0 -a indxdump=off" & @CRLF)
+	ConsoleWrite("MFTRCRD C:0 -a indxdump=off 1024 -s" & @CRLF)
 	ConsoleWrite("" & @CRLF)
 	ConsoleWrite("Example for dumping an $MFT decode for $LogFile from the D: drive:" & @CRLF)
-	ConsoleWrite("MFTRCRD D:2 -d indxdump=off" & @CRLF)
+	ConsoleWrite("MFTRCRD D:2 -d indxdump=off 1024 -s" & @CRLF)
 	ConsoleWrite("" & @CRLF)
 	ConsoleWrite("Example for dumping an $MFT record decode + hexdump of its resolved INDX records for the root directory on C:, equivalent to the 'folder' named C:\" & @CRLF)
-	ConsoleWrite("MFTRCRD C:5 -d indxdump=on" & @CRLF)
+	ConsoleWrite("MFTRCRD C:5 -d indxdump=on 1024 -s" & @CRLF)
+	ConsoleWrite("" & @CRLF)
+	ConsoleWrite("Example for dumping an $MFT record decode from volume offset 0x100000 and with a record size of 4096 bytes" & @CRLF)
+	ConsoleWrite("MFTRCRD C?0x100000 -d indxdump=off 4096 -s" & @CRLF)
+	ConsoleWrite("" & @CRLF)
+	ConsoleWrite("Example for dumping an $MFT record decode from volume offset 0x100000, with a record size of 4096 bytes, and saving the binary record in current directory" & @CRLF)
+	ConsoleWrite("MFTRCRD C?0x100000 -d indxdump=off 4096 -w" & @CRLF)
 	Exit
 EndIf
 If $cmdline[2] <> "-d" AND $cmdline[2] <> "-a" Then
@@ -169,10 +180,10 @@ If FileExists($cmdline[1]) <> 1 Then ;OR StringMid($cmdline[1],2,1) <> ":" OR St
 		EndIf
 		If Not IsInt($TargetOffset/512) Then
 			$TargetOffset = Floor($TargetOffset/512)*512
-			ConsoleWrite("Target offset was not sector aligned and was corrected downwards to: " & $TargetOffset & @CRLF)
+			ConsoleWrite("Target offset was not sector aligned and was corrected downwards to: 0x" & Hex($TargetOffset) & @CRLF)
 			ConsoleWrite(@CRLF)
 		Else
-			ConsoleWrite("Target offset is: " & $TargetOffset & @CRLF)
+			ConsoleWrite("Target offset is: 0x" & Hex($TargetOffset) & @CRLF & @CRLF)
 		EndIf
 	EndIf
 	If StringMid($cmdline[1],2,1) = ":" Then
@@ -195,9 +206,20 @@ Else
 EndIf
 $file = $cmdline[1]
 If $cmdline[3] <> "indxdump=on" AND $cmdline[3] <> "indxdump=off" Then
-	ConsoleWrite("Param 4 must be either indxdump=on or indxdump=off" & @CRLF)
+	ConsoleWrite("Param 3 must be either indxdump=on or indxdump=off" & @CRLF)
 	Exit
 EndIf
+If ($TargetIsOffset And $cmdline[4] <> 1024) AND ($TargetIsOffset And $cmdline[4] <> 4096) Then
+	ConsoleWrite("Param 4 must be either 1024 or 4096 when decoding from volume offset" & @CRLF)
+	Exit
+EndIf
+If $cmdline[5] <> "-s" AND $cmdline[5] <> "-w" Then
+	ConsoleWrite("Error: Wrong parameter 5 supplied: " & $cmdline[5] & @CRLF)
+	Exit
+EndIf
+If $cmdline[5] = "-s" Then $DoExtraction=0
+If $cmdline[5] = "-w" Then $DoExtraction=1
+Global $MFT_Record_Size = $cmdline[4]
 EndFunc
 
 Func NT_SUCCESS($status)
@@ -567,17 +589,46 @@ Func _StripMftRecord($MFTEntry)
 	$UpdSeqArrOffset = Dec(_SwapEndian(StringMid($MFTEntry,11,4)))
 	$UpdSeqArrSize = Dec(_SwapEndian(StringMid($MFTEntry,15,4)))
 	$UpdSeqArr = StringMid($MFTEntry,3+($UpdSeqArrOffset*2),$UpdSeqArrSize*2*2)
-	$UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
-	$UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
-	$UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
-	$RecordEnd1 = StringMid($MFTEntry,1023,4)
-	$RecordEnd2 = StringMid($MFTEntry,2047,4)
-	If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 Then
-		ConsoleWrite("Error the $MFT record is corrupt" & @CRLF)
-		Return ""
-	Else
+	;ConsoleWrite("$UpdSeqArr: " & $UpdSeqArr & @CRLF)
+	If $MFT_Record_Size = 1024 Then
+		Local $UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
+		Local $UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
+		Local $UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
+		Local $RecordEnd1 = StringMid($MFTEntry,1023,4)
+		Local $RecordEnd2 = StringMid($MFTEntry,2047,4)
+		If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 Then
+			ConsoleWrite("The record failed Fixup:" & @CRLF)
+			ConsoleWrite(_HexEncode($MFTEntry))
+			Return ""
+		EndIf
 		$MFTEntry = StringMid($MFTEntry,1,1022) & $UpdSeqArrPart1 & StringMid($MFTEntry,1027,1020) & $UpdSeqArrPart2
+	ElseIf $MFT_Record_Size = 4096 Then
+		Local $UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
+		Local $UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
+		Local $UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
+		Local $UpdSeqArrPart3 = StringMid($UpdSeqArr,13,4)
+		Local $UpdSeqArrPart4 = StringMid($UpdSeqArr,17,4)
+		Local $UpdSeqArrPart5 = StringMid($UpdSeqArr,21,4)
+		Local $UpdSeqArrPart6 = StringMid($UpdSeqArr,25,4)
+		Local $UpdSeqArrPart7 = StringMid($UpdSeqArr,29,4)
+		Local $UpdSeqArrPart8 = StringMid($UpdSeqArr,33,4)
+		Local $RecordEnd1 = StringMid($MFTEntry,1023,4)
+		Local $RecordEnd2 = StringMid($MFTEntry,2047,4)
+		Local $RecordEnd3 = StringMid($MFTEntry,3071,4)
+		Local $RecordEnd4 = StringMid($MFTEntry,4095,4)
+		Local $RecordEnd5 = StringMid($MFTEntry,5119,4)
+		Local $RecordEnd6 = StringMid($MFTEntry,6143,4)
+		Local $RecordEnd7 = StringMid($MFTEntry,7167,4)
+		Local $RecordEnd8 = StringMid($MFTEntry,8191,4)
+		If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 OR $UpdSeqArrPart0 <> $RecordEnd3 OR $UpdSeqArrPart0 <> $RecordEnd4 OR $UpdSeqArrPart0 <> $RecordEnd5 OR $UpdSeqArrPart0 <> $RecordEnd6 OR $UpdSeqArrPart0 <> $RecordEnd7 OR $UpdSeqArrPart0 <> $RecordEnd8 Then
+			ConsoleWrite("The record failed Fixup:" & @CRLF)
+			ConsoleWrite(_HexEncode($MFTEntry))
+			Return ""
+		Else
+			$MFTEntry =  StringMid($MFTEntry,1,1022) & $UpdSeqArrPart1 & StringMid($MFTEntry,1027,1020) & $UpdSeqArrPart2 & StringMid($MFTEntry,2051,1020) & $UpdSeqArrPart3 & StringMid($MFTEntry,3075,1020) & $UpdSeqArrPart4 & StringMid($MFTEntry,4099,1020) & $UpdSeqArrPart5 & StringMid($MFTEntry,5123,1020) & $UpdSeqArrPart6 & StringMid($MFTEntry,6147,1020) & $UpdSeqArrPart7 & StringMid($MFTEntry,7171,1020) & $UpdSeqArrPart8
+		EndIf
 	EndIf
+
 	$RecordSize = Dec(_SwapEndian(StringMid($MFTEntry,51,8)),2)
 	$HeaderSize = Dec(_SwapEndian(StringMid($MFTEntry,43,4)),2)
 	$MFTEntry = StringMid($MFTEntry,$HeaderSize*2+3,($RecordSize-$HeaderSize-8)*2)        ;strip "0x..." and "FFFFFFFF..."
@@ -661,17 +712,44 @@ $HEADER_MFTREcordNumber = ""
 $UpdSeqArrOffset = Dec(_SwapEndian(StringMid($MFTEntry,11,4)))
 $UpdSeqArrSize = Dec(_SwapEndian(StringMid($MFTEntry,15,4)))
 $UpdSeqArr = StringMid($MFTEntry,3+($UpdSeqArrOffset*2),$UpdSeqArrSize*2*2)
-$UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
-$UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
-$UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
-$RecordEnd1 = StringMid($MFTEntry,1023,4)
-$RecordEnd2 = StringMid($MFTEntry,2047,4)
-If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 Then
-	ConsoleWrite("Error: the $MFT record is corrupt" & @CRLF)
-	Return
- Else
-	$MFTEntry = StringMid($MFTEntry,1,1022) & $UpdSeqArrPart1 & StringMid($MFTEntry,1027,1020) & $UpdSeqArrPart2
-EndIf
+;ConsoleWrite("$UpdSeqArr: " & $UpdSeqArr & @CRLF)
+	If $MFT_Record_Size = 1024 Then
+		Local $UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
+		Local $UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
+		Local $UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
+		Local $RecordEnd1 = StringMid($MFTEntry,1023,4)
+		Local $RecordEnd2 = StringMid($MFTEntry,2047,4)
+		If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 Then
+			_DebugOut("The record failed Fixup", $MFTEntry)
+			Return ""
+		EndIf
+		$MFTEntry = StringMid($MFTEntry,1,1022) & $UpdSeqArrPart1 & StringMid($MFTEntry,1027,1020) & $UpdSeqArrPart2
+	ElseIf $MFT_Record_Size = 4096 Then
+		Local $UpdSeqArrPart0 = StringMid($UpdSeqArr,1,4)
+		Local $UpdSeqArrPart1 = StringMid($UpdSeqArr,5,4)
+		Local $UpdSeqArrPart2 = StringMid($UpdSeqArr,9,4)
+		Local $UpdSeqArrPart3 = StringMid($UpdSeqArr,13,4)
+		Local $UpdSeqArrPart4 = StringMid($UpdSeqArr,17,4)
+		Local $UpdSeqArrPart5 = StringMid($UpdSeqArr,21,4)
+		Local $UpdSeqArrPart6 = StringMid($UpdSeqArr,25,4)
+		Local $UpdSeqArrPart7 = StringMid($UpdSeqArr,29,4)
+		Local $UpdSeqArrPart8 = StringMid($UpdSeqArr,33,4)
+		Local $RecordEnd1 = StringMid($MFTEntry,1023,4)
+		Local $RecordEnd2 = StringMid($MFTEntry,2047,4)
+		Local $RecordEnd3 = StringMid($MFTEntry,3071,4)
+		Local $RecordEnd4 = StringMid($MFTEntry,4095,4)
+		Local $RecordEnd5 = StringMid($MFTEntry,5119,4)
+		Local $RecordEnd6 = StringMid($MFTEntry,6143,4)
+		Local $RecordEnd7 = StringMid($MFTEntry,7167,4)
+		Local $RecordEnd8 = StringMid($MFTEntry,8191,4)
+		If $UpdSeqArrPart0 <> $RecordEnd1 OR $UpdSeqArrPart0 <> $RecordEnd2 OR $UpdSeqArrPart0 <> $RecordEnd3 OR $UpdSeqArrPart0 <> $RecordEnd4 OR $UpdSeqArrPart0 <> $RecordEnd5 OR $UpdSeqArrPart0 <> $RecordEnd6 OR $UpdSeqArrPart0 <> $RecordEnd7 OR $UpdSeqArrPart0 <> $RecordEnd8 Then
+			_DebugOut("The record failed Fixup", $MFTEntry)
+			Return ""
+		Else
+			$MFTEntry =  StringMid($MFTEntry,1,1022) & $UpdSeqArrPart1 & StringMid($MFTEntry,1027,1020) & $UpdSeqArrPart2 & StringMid($MFTEntry,2051,1020) & $UpdSeqArrPart3 & StringMid($MFTEntry,3075,1020) & $UpdSeqArrPart4 & StringMid($MFTEntry,4099,1020) & $UpdSeqArrPart5 & StringMid($MFTEntry,5123,1020) & $UpdSeqArrPart6 & StringMid($MFTEntry,6147,1020) & $UpdSeqArrPart7 & StringMid($MFTEntry,7171,1020) & $UpdSeqArrPart8
+		EndIf
+	EndIf
+
 Local $MFTHeader = StringMid($MFTEntry,1,2+32)
 $HEADER_LSN = StringMid($MFTEntry,19,16)
 $HEADER_LSN = Dec(_SwapEndian($HEADER_LSN),2)
@@ -1025,9 +1103,10 @@ Func _FindFileMFTRecord($TargetFile)
 	EndIf
 	$TargetFile = _DecToLittleEndian($TargetFile)
 	$TargetFileDec = Dec(_SwapEndian($TargetFile),2)
+	Local $RecordsDivisor = $MFT_Record_Size/512
 	For $i = 1 To UBound($MFT_RUN_Clusters)-1
 		$CurrentClusters = $MFT_RUN_Clusters[$i]
-		$RecordsInCurrentRun = ($CurrentClusters*$SectorsPerCluster)/2
+		$RecordsInCurrentRun = ($CurrentClusters*$SectorsPerCluster)/$RecordsDivisor
 		$Counter+=$RecordsInCurrentRun
 		If $Counter>$TargetFileDec Then
 			ExitLoop
@@ -1035,19 +1114,24 @@ Func _FindFileMFTRecord($TargetFile)
 	Next
 	$TryAt = $Counter-$RecordsInCurrentRun
 	$TryAtArrIndex = $i
-	$RecordsPerCluster = $SectorsPerCluster/2
+	$RecordsPerCluster = $SectorsPerCluster/$RecordsDivisor
 	Do
 		$RecordJumper+=$RecordsPerCluster
 		$Counter2+=1
 		$Final = $TryAt+$RecordJumper
 	Until $Final>=$TargetFileDec
 	$RecordsTooMuch = $Final-$TargetFileDec
-	_WinAPI_SetFilePointerEx($hFile, $MFT_RUN_VCN[$i]*$BytesPerCluster+($Counter2*$BytesPerCluster)-($RecordsTooMuch*1024), $FILE_BEGIN)
+	_WinAPI_SetFilePointerEx($hFile, $MFT_RUN_VCN[$i]*$BytesPerCluster+($Counter2*$BytesPerCluster)-($RecordsTooMuch*$MFT_Record_Size), $FILE_BEGIN)
 	_WinAPI_ReadFile($hFile, DllStructGetPtr($tBuffer), $MFT_Record_Size, $nBytes)
 	$record = DllStructGetData($tBuffer, 1)
 	If StringMid($record,91,8) = $TargetFile Then
 		$TmpOffset = DllCall('kernel32.dll', 'int', 'SetFilePointerEx', 'ptr', $hFile, 'int64', 0, 'int64*', 0, 'dword', 1)
-		ConsoleWrite("Record number: " & Dec(_SwapEndian($TargetFile),2) & " found at disk offset: 0x" & Hex($TmpOffset[3]-1024) & @CRLF)
+		ConsoleWrite("Record number: " & Dec(_SwapEndian($TargetFile),2) & " found at disk offset: 0x" & Hex($TmpOffset[3]-$MFT_Record_Size) & @CRLF)
+		If $DoExtraction Then
+			Local $hDump = _WinAPI_CreateFile("\\.\" & @ScriptDir & "\Record_" & StringLeft($TargetDrive,1) & "_" & Dec(_SwapEndian($TargetFile),2) & ".bin", 1, 6, 6)
+			_WinAPI_WriteFile($hDump, DllStructGetPtr($tBuffer), $MFT_Record_Size, $nBytes)
+			_WinAPI_CloseHandle($hDump)
+		EndIf
 		_WinAPI_CloseHandle($hFile)
 		Return $record
 	Else
@@ -1177,7 +1261,7 @@ Func _ReadBootSector($TargetDrive)
 	Else
 		$MFT_Record_Size = $BytesPerCluster * $ClustersPerFileRecordSegment
 	EndIf
-;	ConsoleWrite("$MFT_Record_Size: " & $MFT_Record_Size & @crlf)
+	ConsoleWrite("MFT Record Size: " & $MFT_Record_Size & @crlf)
 	ConsoleWrite(@CRLF)
 EndFunc
 
@@ -2889,7 +2973,7 @@ EndFunc
 
 Func _DumpFromOffset($DriveOffset)
 	Local $ttBuffer,$nnBytes,$hhFile
-	$ttBuffer = DllStructCreate("byte[" & 1024 & "]")
+	$ttBuffer = DllStructCreate("byte[" & $MFT_Record_Size & "]")
 	$hhFile = _WinAPI_CreateFile("\\.\" & $TargetDrive, 2, 6, 6)
 	If $hhFile = 0 Then
 		ConsoleWrite("Error in function CreateFile when trying to access " & $TargetDrive & @CRLF)
@@ -2897,7 +2981,7 @@ Func _DumpFromOffset($DriveOffset)
 		Exit
 	EndIf
 	_WinAPI_SetFilePointerEx($hhFile, $DriveOffset, $FILE_BEGIN)
-	_WinAPI_ReadFile($hhFile, DllStructGetPtr($ttBuffer), 1024, $nnBytes)
+	_WinAPI_ReadFile($hhFile, DllStructGetPtr($ttBuffer), $MFT_Record_Size, $nnBytes)
 	$MFTRecord = DllStructGetData($ttBuffer, 1)
 	_WinAPI_CloseHandle($hhFile)
 	If $MFTRecord <> "" Then
