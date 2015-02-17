@@ -3,7 +3,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump
 #AutoIt3Wrapper_Res_Description=Decode a file's attributes from $MFT
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.29
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.30
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -90,7 +90,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.29" & @CRLF)
+ConsoleWrite("Version 1.0.0.30" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -103,6 +103,8 @@ Else
 EndIf
 If $TargetIsOffset Then
 	_ReadBootSector($TargetDrive)
+	$TargetDrive = StringMid($cmdline[1],1,StringInStr($cmdline[1],"?")-1)
+	If StringLen($TargetDrive) = 1 Then $TargetDrive = $TargetDrive & ":"
 	_ExtractSingleFile($TargetOffset)
 	_DumpInfo()
 	ConsoleWrite(@CRLF)
@@ -165,13 +167,15 @@ EndIf
 If $cmdline[2] <> "-d" AND $cmdline[2] <> "-a" Then
 	ConsoleWrite("Error: Wrong parameter 2 supplied: " & $cmdline[2] & @CRLF)
 EndIf
+$Sep = 1
 If FileExists($cmdline[1]) <> 1 Then ;OR StringMid($cmdline[1],2,1) <> ":" OR StringMid($cmdline[1],2,1) <> "?" Then
-	If StringMid($cmdline[1],2,1) = "?" Then
-		If StringMid($cmdline[1],3,2) = "0x" Then
-			$TargetOffset = Dec(StringMid($cmdline[1],5),2)
+	If StringInStr($cmdline[1],"?") Then
+		$Sep = StringInStr($cmdline[1],"?")
+		If StringMid($cmdline[1],$Sep+1,2) = "0x" Then
+			$TargetOffset = Dec(StringMid($cmdline[1],$Sep+3),2)
 			$TargetIsOffset = 1
 		Else
-			$TargetOffset = StringMid($cmdline[1],3)
+			$TargetOffset = StringMid($cmdline[1],$Sep+1)
 			$TargetIsOffset = 1
 		EndIf
 		If Not StringIsDigit($TargetOffset) Then
@@ -186,13 +190,6 @@ If FileExists($cmdline[1]) <> 1 Then ;OR StringMid($cmdline[1],2,1) <> ":" OR St
 			ConsoleWrite("Target offset is: 0x" & Hex($TargetOffset) & @CRLF & @CRLF)
 		EndIf
 	EndIf
-	If StringMid($cmdline[1],2,1) = ":" Then
-		If StringIsDigit(StringMid($cmdline[1],3)) <> 1 Then
-			ConsoleWrite("Error: Param1 is not valid: " & $cmdline[1] & @CRLF)
-			Exit
-		EndIf
-		$TargetOffset = StringMid($cmdline[1],3)
-	EndIf
 Else
 	$FileAttrib = FileGetAttrib($cmdline[1])
 	If $FileAttrib <> "D" Then
@@ -204,7 +201,12 @@ Else
 		ConsoleWrite("Target is a Directory" & @CRLF)
 	EndIf
 EndIf
-$file = $cmdline[1]
+If $Sep = 1 Then
+	$file = $cmdline[1]
+Else
+	$file = StringMid($cmdline[1],1,$Sep-1)
+EndIf
+;ConsoleWrite("$file: " & $file & @CRLF)
 If $cmdline[3] <> "indxdump=on" AND $cmdline[3] <> "indxdump=off" Then
 	ConsoleWrite("Param 3 must be either indxdump=on or indxdump=off" & @CRLF)
 	Exit
@@ -1126,7 +1128,8 @@ Func _FindFileMFTRecord($TargetFile)
 	$record = DllStructGetData($tBuffer, 1)
 	If StringMid($record,91,8) = $TargetFile Then
 		$TmpOffset = DllCall('kernel32.dll', 'int', 'SetFilePointerEx', 'ptr', $hFile, 'int64', 0, 'int64*', 0, 'dword', 1)
-		ConsoleWrite("Record number: " & Dec(_SwapEndian($TargetFile),2) & " found at disk offset: 0x" & Hex($TmpOffset[3]-$MFT_Record_Size) & @CRLF)
+		$FoundOffset = Int($TmpOffset[3])-Int($MFT_Record_Size)
+		ConsoleWrite("Record number: " & Dec(_SwapEndian($TargetFile),2) & " found at disk offset: 0x" & Hex($FoundOffset) & @CRLF)
 		If $DoExtraction Then
 			Local $hDump = _WinAPI_CreateFile("\\.\" & @ScriptDir & "\Record_" & StringLeft($TargetDrive,1) & "_" & Dec(_SwapEndian($TargetFile),2) & ".bin", 1, 6, 6)
 			_WinAPI_WriteFile($hDump, DllStructGetPtr($tBuffer), $MFT_Record_Size, $nBytes)
@@ -2690,16 +2693,16 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$MFTReferenceSeqNo = StringMid($Entry,$NewLocalAttributeOffset+12,4)
 	$MFTReferenceSeqNo = Dec(StringMid($MFTReferenceSeqNo,3,2)&StringMid($MFTReferenceSeqNo,1,2))
 	$IndexEntryLength = StringMid($Entry,$NewLocalAttributeOffset+16,4)
-	$IndexEntryLength = Dec(StringMid($IndexEntryLength,3,2)&StringMid($IndexEntryLength,3,2))
+	$IndexEntryLength = Dec(StringMid($IndexEntryLength,3,2)&StringMid($IndexEntryLength,1,2))
 	$OffsetToFileName = StringMid($Entry,$NewLocalAttributeOffset+20,4)
-	$OffsetToFileName = Dec(StringMid($OffsetToFileName,3,2)&StringMid($OffsetToFileName,3,2))
+	$OffsetToFileName = Dec(StringMid($OffsetToFileName,3,2)&StringMid($OffsetToFileName,1,2))
 	$IndexFlags = StringMid($Entry,$NewLocalAttributeOffset+24,4)
 ;	$Padding = StringMid($Entry,$NewLocalAttributeOffset+28,4)
 	$MFTReferenceOfParent = StringMid($Entry,$NewLocalAttributeOffset+32,12)
 	$MFTReferenceOfParent = StringMid($MFTReferenceOfParent,7,2)&StringMid($MFTReferenceOfParent,5,2)&StringMid($MFTReferenceOfParent,3,2)&StringMid($MFTReferenceOfParent,1,2)
 	$MFTReferenceOfParent = Dec($MFTReferenceOfParent)
 	$MFTReferenceOfParentSeqNo = StringMid($Entry,$NewLocalAttributeOffset+44,4)
-	$MFTReferenceOfParentSeqNo = Dec(StringMid($MFTReferenceOfParentSeqNo,3,2) & StringMid($MFTReferenceOfParentSeqNo,3,2))
+	$MFTReferenceOfParentSeqNo = Dec(StringMid($MFTReferenceOfParentSeqNo,3,2) & StringMid($MFTReferenceOfParentSeqNo,1,2))
 	$Indx_CTime = StringMid($Entry,$NewLocalAttributeOffset+48,16)
 	$Indx_CTime = StringMid($Indx_CTime,15,2) & StringMid($Indx_CTime,13,2) & StringMid($Indx_CTime,11,2) & StringMid($Indx_CTime,9,2) & StringMid($Indx_CTime,7,2) & StringMid($Indx_CTime,5,2) & StringMid($Indx_CTime,3,2) & StringMid($Indx_CTime,1,2)
 	$Indx_CTime_tmp = _WinTime_UTCFileTimeToLocalFileTime("0x" & $Indx_CTime)
@@ -2824,11 +2827,11 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$MFTReferenceSeqNo = Dec(StringMid($MFTReferenceSeqNo,3,2)&StringMid($MFTReferenceSeqNo,1,2))
 		$IndexEntryLength = StringMid($Entry,$NextEntryOffset+16,4)
 ;		ConsoleWrite("$IndexEntryLength = " & $IndexEntryLength & @crlf)
-		$IndexEntryLength = Dec(StringMid($IndexEntryLength,3,2)&StringMid($IndexEntryLength,3,2))
+		$IndexEntryLength = Dec(StringMid($IndexEntryLength,3,2)&StringMid($IndexEntryLength,1,2))
 ;		ConsoleWrite("$IndexEntryLength = " & $IndexEntryLength & @crlf)
 		$OffsetToFileName = StringMid($Entry,$NextEntryOffset+20,4)
 ;		ConsoleWrite("$OffsetToFileName = " & $OffsetToFileName & @crlf)
-		$OffsetToFileName = Dec(StringMid($OffsetToFileName,3,2)&StringMid($OffsetToFileName,3,2))
+		$OffsetToFileName = Dec(StringMid($OffsetToFileName,3,2)&StringMid($OffsetToFileName,1,2))
 ;		ConsoleWrite("$OffsetToFileName = " & $OffsetToFileName & @crlf)
 		$IndexFlags = StringMid($Entry,$NextEntryOffset+24,4)
 ;		ConsoleWrite("$IndexFlags = " & $IndexFlags & @crlf)
@@ -2841,7 +2844,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 ;		ConsoleWrite("$MFTReferenceOfParent = " & $MFTReferenceOfParent & @crlf)
 		$MFTReferenceOfParent = Dec($MFTReferenceOfParent)
 		$MFTReferenceOfParentSeqNo = StringMid($Entry,$NextEntryOffset+44,4)
-		$MFTReferenceOfParentSeqNo = Dec(StringMid($MFTReferenceOfParentSeqNo,3,2) & StringMid($MFTReferenceOfParentSeqNo,3,2))
+		$MFTReferenceOfParentSeqNo = Dec(StringMid($MFTReferenceOfParentSeqNo,3,2) & StringMid($MFTReferenceOfParentSeqNo,1,2))
 
 		$Indx_CTime = StringMid($Entry,$NextEntryOffset+48,16)
 		$Indx_CTime = StringMid($Indx_CTime,15,2) & StringMid($Indx_CTime,13,2) & StringMid($Indx_CTime,11,2) & StringMid($Indx_CTime,9,2) & StringMid($Indx_CTime,7,2) & StringMid($Indx_CTime,5,2) & StringMid($Indx_CTime,3,2) & StringMid($Indx_CTime,1,2)
@@ -2982,6 +2985,11 @@ Func _DumpFromOffset($DriveOffset)
 	EndIf
 	_WinAPI_SetFilePointerEx($hhFile, $DriveOffset, $FILE_BEGIN)
 	_WinAPI_ReadFile($hhFile, DllStructGetPtr($ttBuffer), $MFT_Record_Size, $nnBytes)
+	If $DoExtraction Then
+		Local $hDump = _WinAPI_CreateFile("\\.\" & @ScriptDir & "\Record_" & StringLeft($TargetDrive,1) & "_0x" & Hex($DriveOffset) & ".bin", 1, 6, 6)
+		_WinAPI_WriteFile($hDump, DllStructGetPtr($ttBuffer), $MFT_Record_Size, $nnBytes)
+		_WinAPI_CloseHandle($hDump)
+	EndIf
 	$MFTRecord = DllStructGetData($ttBuffer, 1)
 	_WinAPI_CloseHandle($hhFile)
 	If $MFTRecord <> "" Then

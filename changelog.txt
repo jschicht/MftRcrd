@@ -1,1 +1,3 @@
+
+v1.0.0.30: Added support for decoding records within files as input (must specify offset). Fixed a few bugs in the output of decoded $INDEX_ALLOCATION and $INDEX_ROOT.
 v1.0.0.29: Added complete support for MFT record size of 4096 bytes. Added new switch for extracting record to file.
