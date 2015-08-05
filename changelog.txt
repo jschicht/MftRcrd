@@ -1,3 +1,17 @@
 
-v1.0.0.30: Added support for decoding records within files as input (must specify offset). Fixed a few bugs in the output of decoded $INDEX_ALLOCATION and $INDEX_ROOT.
-v1.0.0.29: Added complete support for MFT record size of 4096 bytes. Added new switch for extracting record to file.
+v1.0.0.31
+Added missing decode of "Quota Charged" in $STANDARD_INFORMATION attribute.
+Added missing decode of "EaSize" in $FILE_NAME attribute.
+Re-arranged slightly the output of $FILE_NAME decode.
+Fixed bug in parsing $EA attribute.
+Added decode of the named stream $TXF_DATA ($LOGGED_UTILITY_STREAM).
+
+
+v1.0.0.30
+Added support for decoding records within files as input (must specify offset). 
+Fixed a few bugs in the output of decoded $INDEX_ALLOCATION and $INDEX_ROOT.
+
+
+v1.0.0.29
+Added complete support for MFT record size of 4096 bytes. 
+Added new switch for extracting record to file.

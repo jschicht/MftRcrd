@@ -1,9 +1,10 @@
 #RequireAdmin
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
-#AutoIt3Wrapper_Res_Comment=Quick $MFT record dump
-#AutoIt3Wrapper_Res_Description=Decode a file's attributes from $MFT
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.30
+#AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
+#AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.31
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -13,7 +14,6 @@
 #Include <String.au3>
 ;
 ; https://github.com/jschicht
-; http://code.google.com/p/mft2csv/
 ;
 Global $ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ResidentIndx, $_COMMON_KERNEL32DLL=DllOpen("kernel32.dll")
 Global $BrowsedFile,$TargetDrive = "", $ALInnerCouner, $MFTSize, $TargetIsOffset=0,$TargetOffset,$DoExtraction=0
@@ -29,7 +29,7 @@ Global $DATA_AllocatedSize,$DATA_RealSize,$DATA_InitializedStreamSize,$RunListOf
 Global $RUN_VCN[1],$RUN_Clusters[1],$MFT_RUN_Clusters[1],$MFT_RUN_VCN[1],$NameQ[5],$DataQ[1],$sBuffer,$AttrQ[1], $RUN_Sparse[1], $MFT_RUN_Sparse[1], $RUN_Complete[1][4], $MFT_RUN_Complete[1][4], $RUN_Sectors, $MFT_RUN_Sectors
 Global $SI_CTime,$SI_ATime,$SI_MTime,$SI_RTime,$SI_FilePermission,$SI_USN,$Errors,$RecordSlackSpace
 Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxMFTRefSeqNoArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxMFTParentRefSeqNoArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
-Global $IsDirectory = 0, $AttributesArr[18][4], $SIArr[13][2], $FNArr[14][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2],$VolumeNameArr[2][2],$VolumeInformationArr[3][2],$RPArr[11][2],$LUSArr[3][2],$EAInfoArr[5][2],$EAArr[8][2],$IRArr[12][2],$IndxArr[20][2]
+Global $IsDirectory = 0, $AttributesArr[18][4], $SIArr[14][2], $FNArr[15][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2],$VolumeNameArr[2][2],$VolumeInformationArr[3][2],$RPArr[11][2],$LUSArr[3][2],$EAInfoArr[5][2],$EAArr[8][2],$IRArr[12][2],$IndxArr[20][2]
 Global $HexDumpRecordSlack[1],$HexDumpRecord[1],$HexDumpHeader[1],$HexDumpStandardInformation[1],$HexDumpAttributeList[1],$HexDumpFileName[1],$HexDumpObjectId[1],$HexDumpSecurityDescriptor[1],$HexDumpVolumeName[1],$HexDumpVolumeInformation[1],$HexDumpData[1],$HexDumpIndexRoot[1],$HexDumpIndexAllocation[1],$HexDumpBitmap[1],$HexDumpReparsePoint[1],$HexDumpEaInformation[1],$HexDumpEa[1],$HexDumpPropertySet[1],$HexDumpLoggedUtilityStream[1],$HexDumpIndxRecord[1]
 Global $FN_Number,$DATA_Number,$SI_Number,$ATTRIBLIST_Number,$OBJID_Number,$SECURITY_Number,$VOLNAME_Number,$VOLINFO_Number,$INDEXROOT_Number,$INDEXALLOC_Number,$BITMAP_Number,$REPARSEPOINT_Number,$EAINFO_Number,$EA_Number,$PROPERTYSET_Number,$LOGGEDUTILSTREAM_Number
 Global $STANDARD_INFORMATION_ON,$ATTRIBUTE_LIST_ON,$FILE_NAME_ON,$OBJECT_ID_ON,$SECURITY_DESCRIPTOR_ON,$VOLUME_NAME_ON,$VOLUME_INFORMATION_ON,$DATA_ON,$INDEX_ROOT_ON,$INDEX_ALLOCATION_ON,$BITMAP_ON,$REPARSE_POINT_ON,$EA_INFORMATION_ON,$EA_ON,$PROPERTY_SET_ON,$LOGGED_UTILITY_STREAM_ON,$ATTRIBUTE_END_MARKER_ON
@@ -90,7 +90,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.30" & @CRLF)
+ConsoleWrite("Version 1.0.0.31" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -701,6 +701,7 @@ Local $MFTEntryOrig
 Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
 Global $HexDumpRecordSlack[1],$HexDumpRecord[1],$HexDumpHeader[1],$HexDumpStandardInformation[1],$HexDumpAttributeList[1],$HexDumpFileName[1],$HexDumpObjectId[1],$HexDumpSecurityDescriptor[1],$HexDumpVolumeName[1],$HexDumpVolumeInformation[1],$HexDumpData[1],$HexDumpIndexRoot[1],$HexDumpIndexAllocation[1],$HexDumpBitmap[1],$HexDumpReparsePoint[1],$HexDumpEaInformation[1],$HexDumpEa[1],$HexDumpPropertySet[1],$HexDumpLoggedUtilityStream[1],$HexDumpIndxRecord[1]
 Global $NameQ[5]		;clear name array
+Global $TxfDataArr[8][2]
 _Arrayadd($HexDumpRecord,StringMid($MFTEntry,3))
 _SetArrays()
 $HEADER_LSN = ""
@@ -825,7 +826,7 @@ While 1
 		Case $AttributeType = $STANDARD_INFORMATION
 			$STANDARD_INFORMATION_ON = "TRUE"
 			$SI_Number += 1
-			ReDim $SIArr[13][$SI_Number+1]
+			ReDim $SIArr[14][$SI_Number+1]
 			_Get_StandardInformation($MFTEntry,$AttributeOffset,$AttributeSize,$SI_Number)
 			ReDim $HexDumpStandardInformation[$SI_Number]
 			_Arrayadd($HexDumpStandardInformation,StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
@@ -860,7 +861,7 @@ While 1
 				Case $NameSpace = "03"	;DOS+WIN32
 					$NameQ[3] = $attr
 			EndSelect
-			ReDim $FNArr[14][$FN_Number+1]
+			ReDim $FNArr[15][$FN_Number+1]
 			_Get_FileName($MFTEntry,$AttributeOffset,$AttributeSize,$FN_Number)
 			ReDim $HexDumpFileName[$FN_Number]
 			_Arrayadd($HexDumpFileName,StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
@@ -1269,7 +1270,7 @@ Func _ReadBootSector($TargetDrive)
 EndFunc
 
 Func _SetArrays()
-Global $AttributesArr[18][4], $SIArr[13][4], $FNArr[14][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2], $VolumeNameArr[2][2], $VolumeInformationArr[3][2]
+Global $AttributesArr[18][4], $SIArr[14][4], $FNArr[15][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2], $VolumeNameArr[2][2], $VolumeInformationArr[3][2]
 $AttributesArr[0][0] = "Attribute name:"
 $AttributesArr[1][0] = "STANDARD_INFORMATION"
 $AttributesArr[2][0] = "ATTRIBUTE_LIST"
@@ -1317,24 +1318,26 @@ $SIArr[8][0] = "Version Number"
 $SIArr[9][0] = "Class ID"
 $SIArr[10][0] = "Owner ID"
 $SIArr[11][0] = "Security ID"
-$SIArr[12][0] = "USN"
+$SIArr[12][0] = "Quota Charged"
+$SIArr[13][0] = "USN"
 $SIArr[0][1] = "Value:"
 $SIArr[0][2] = "Field offset:"
 $SIArr[0][3] = "Field size (bytes):"
 $FNArr[0][0] = "Field name"
-$FNArr[1][0] = "ParentSequenceNo"
-$FNArr[2][0] = "File Create Time (CTime)"
-$FNArr[3][0] = "File Modified Time (ATime)"
-$FNArr[4][0] = "MFT Entry modified Time (MTime)"
-$FNArr[5][0] = "File Last Access Time (RTime)"
-$FNArr[6][0] = "AllocSize"
-$FNArr[7][0] = "RealSize"
-$FNArr[8][0] = "Flags"
-$FNArr[9][0] = "NameLength"
-$FNArr[10][0] = "NameType"
-$FNArr[11][0] = "NameSpace"
-$FNArr[12][0] = "FileName"
-$FNArr[13][0] = "Parent MFTReference"
+$FNArr[1][0] = "Parent MFTReference"
+$FNArr[2][0] = "ParentSequenceNo"
+$FNArr[3][0] = "File Create Time (CTime)"
+$FNArr[4][0] = "File Modified Time (ATime)"
+$FNArr[5][0] = "MFT Entry modified Time (MTime)"
+$FNArr[6][0] = "File Last Access Time (RTime)"
+$FNArr[7][0] = "AllocSize"
+$FNArr[8][0] = "RealSize"
+$FNArr[9][0] = "EaSize"
+$FNArr[10][0] = "Flags"
+$FNArr[11][0] = "NameLength"
+$FNArr[12][0] = "NameType"
+$FNArr[13][0] = "NameSpace"
+$FNArr[14][0] = "FileName"
 $ObjectIDArr[0][0] = "Field name"
 $ObjectIDArr[1][0] = "GUID Object Id"
 $ObjectIDArr[2][0] = "GUID Birth Volume Id"
@@ -1530,7 +1533,8 @@ Func _Get_StandardInformation($MFTEntry,$SI_Offset,$SI_Size,$Current_SI_Number)
 	$SIArr[9][$Current_SI_Number] = $SI_ClassID
 	$SIArr[10][$Current_SI_Number] = $SI_OwnerID
 	$SIArr[11][$Current_SI_Number] = $SI_SecurityID
-	$SIArr[12][$Current_SI_Number] = $SI_USN
+	$SIArr[12][$Current_SI_Number] = $SI_QuotaCharged
+	$SIArr[13][$Current_SI_Number] = $SI_USN
 EndFunc
 
 Func _Get_ObjectID($MFTEntry,$OBJECTID_Offset,$OBJECTID_Size)
@@ -1745,6 +1749,8 @@ Func _Get_FileName($MFTEntry,$FN_Offset,$FN_Size,$FN_Number)
 	$FN_Flags = StringMid($MFTEntry, $FN_Offset + 160, 8)
 	$FN_Flags = _SwapEndian($FN_Flags)
 	$FN_Flags = _File_Attributes("0x" & $FN_Flags)
+	$FN_EaSize = StringMid($MFTEntry, $FN_Offset + 168, 8)
+	$FN_EaSize = Dec(_SwapEndian($FN_EaSize),2)
 	$FN_NameLength = StringMid($MFTEntry,$FN_Offset+176,2)
 	$FN_NameLength = Dec($FN_NameLength)
 	$FN_NameType = StringMid($MFTEntry,$FN_Offset+178,2)
@@ -1765,19 +1771,20 @@ Func _Get_FileName($MFTEntry,$FN_Offset,$FN_Size,$FN_Number)
 	$FN_FileName = _UnicodeHexToStr($FN_FileName)
 	If StringLen($FN_FileName) <> $FN_NameLength Then $INVALID_FILENAME = 1
 	$FNArr[0][$FN_Number] = "FN Number " & $FN_Number
-	$FNArr[13][$FN_Number] = $FN_ParentReferenceNo
-	$FNArr[1][$FN_Number] = $FN_ParentSequenceNo
-	$FNArr[2][$FN_Number] = $FN_CTime
-	$FNArr[3][$FN_Number] = $FN_ATime
-	$FNArr[4][$FN_Number] = $FN_MTime
-	$FNArr[5][$FN_Number] = $FN_RTime
-	$FNArr[6][$FN_Number] = $FN_AllocSize
-	$FNArr[7][$FN_Number] = $FN_RealSize
-	$FNArr[8][$FN_Number] = $FN_Flags
-	$FNArr[9][$FN_Number] = $FN_NameLength
-	$FNArr[10][$FN_Number] = $FN_NameType
-	$FNArr[11][$FN_Number] = $FN_NameSpace
-	$FNArr[12][$FN_Number] = $FN_FileName
+	$FNArr[1][$FN_Number] = $FN_ParentReferenceNo
+	$FNArr[2][$FN_Number] = $FN_ParentSequenceNo
+	$FNArr[3][$FN_Number] = $FN_CTime
+	$FNArr[4][$FN_Number] = $FN_ATime
+	$FNArr[5][$FN_Number] = $FN_MTime
+	$FNArr[6][$FN_Number] = $FN_RTime
+	$FNArr[7][$FN_Number] = $FN_AllocSize
+	$FNArr[8][$FN_Number] = $FN_RealSize
+	$FNArr[9][$FN_Number] = $FN_EaSize
+	$FNArr[10][$FN_Number] = $FN_Flags
+	$FNArr[11][$FN_Number] = $FN_NameLength
+	$FNArr[12][$FN_Number] = $FN_NameType
+	$FNArr[13][$FN_Number] = $FN_NameSpace
+	$FNArr[14][$FN_Number] = $FN_FileName
 	Return
 EndFunc
 
@@ -1853,7 +1860,7 @@ If $AttributesArr[1][2] = "TRUE" Then; $STANDARD_INFORMATION
 	For $p = 1 To $SI_Number
 		ConsoleWrite(@CRLF)
 		ConsoleWrite("$STANDARD_INFORMATION " & $p & ":" & @CRLF)
-		For $j = 2 To 12
+		For $j = 2 To 13
 			ConsoleWrite($SIArr[$j][0] & ": " & $SIArr[$j][$p] & @CRLF)
 		Next
 		If $cmdline[2] = "-a" Then
@@ -1888,7 +1895,7 @@ If $AttributesArr[3][2] = "TRUE" Then ;$FILE_NAME
 	For $p = 1 To $FN_Number
 		ConsoleWrite(@CRLF)
 		ConsoleWrite("$FILE_NAME " & $p & ":" & @CRLF)
-		For $j = 1 To 13
+		For $j = 1 To 14
 			ConsoleWrite($FNArr[$j][0] & ": " & $FNArr[$j][$p] & @CRLF)
 		Next
 		If $cmdline[2] = "-a" Then
@@ -2098,7 +2105,7 @@ If $AttributesArr[13][2] = "TRUE" Then; $EA_INFORMATION
 	For $p = 1 To $EAINFO_Number
 		ConsoleWrite(@CRLF)
 		ConsoleWrite("$EA_INFORMATION " & $p & ":" & @CRLF)
-		For $j = 1 To 4
+		For $j = 2 To 4
 			ConsoleWrite($EAInfoArr[$j][0] & ": " & $EAInfoArr[$j][$p] & @CRLF)
 		Next
 		If $cmdline[2] = "-a" Then
@@ -2110,12 +2117,21 @@ If $AttributesArr[13][2] = "TRUE" Then; $EA_INFORMATION
 EndIf
 
 If $AttributesArr[14][2] = "TRUE" Then; $EA
+;	_ArrayDisplay($EAArr,"$EAArr")
 	$p = 1
 	For $p = 1 To $EA_Number
 		ConsoleWrite(@CRLF)
 		ConsoleWrite("$EA " & $p & ":" & @CRLF)
 ;		For $j = 1 To 5
-		For $j = 1 To Ubound($EAArr)-1
+		For $j = 3 To Ubound($EAArr)-1
+			#cs
+			If $j = 7 Then
+				ConsoleWrite($EAArr[$j][0] & ": " & @CRLF)
+				ConsoleWrite(_HexEncode("0x"&$EAArr[$j][$p]) & @crlf)
+			Else
+				ConsoleWrite($EAArr[$j][0] & ": " & $EAArr[$j][$p] & @CRLF)
+			EndIf
+			#ce
 			ConsoleWrite($EAArr[$j][0] & ": " & $EAArr[$j][$p] & @CRLF)
 		Next
 		If $cmdline[2] = "-a" Then
@@ -2145,11 +2161,20 @@ If $AttributesArr[16][2] = "TRUE" Then; $LOGGED_UTILITY_STREAM
 		For $j = 1 To 2
 			ConsoleWrite($LUSArr[$j][0] & ": " & $LUSArr[$j][$p] & @CRLF)
 		Next
+		If $LUSArr[1][$p] = "$TXF_DATA" Then
+			For $b = 1 to 1
+				For $c = 0 to UBound($TxfDataArr)-1
+					ConsoleWrite($TxfDataArr[$c][0] & ": " & $TxfDataArr[$c][$b] & @CRLF)
+				Next
+			Next
+		EndIf
+;		ConsoleWrite($LUSArr[1][0] & ": " & $LUSArr[1][1] & @CRLF)
 		If $cmdline[2] = "-a" Then
 			ConsoleWrite(@CRLF)
 			ConsoleWrite("Dump of $LOGGED_UTILITY_STREAM (" & $p & ")" & @crlf)
 			ConsoleWrite(_HexEncode("0x"&$HexDumpLoggedUtilityStream[$p]) & @crlf)
 		EndIf
+
 	Next
 EndIf
 
@@ -2470,13 +2495,13 @@ Func _Get_EaInformation($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$TheEaInformation = StringMid($Entry,$LocalAttributeOffset)
 ;	ConsoleWrite("$TheEaInformation = " & $TheEaInformation & @crlf)
 	$SizeOfPackedEas = StringMid($Entry,$LocalAttributeOffset,4)
-	$SizeOfPackedEas = Dec(StringMid($SizeOfPackedEas,3,2) & StringMid($SizeOfPackedEas,1,2))
+	$SizeOfPackedEas = Dec(_SwapEndian($SizeOfPackedEas),2)
 ;	ConsoleWrite("$SizeOfPackedEas = " & $SizeOfPackedEas & @crlf)
 	$NumberOfEaWithFlagSet = StringMid($Entry,$LocalAttributeOffset+4,4)
-	$NumberOfEaWithFlagSet = Dec(StringMid($NumberOfEaWithFlagSet,3,2) & StringMid($NumberOfEaWithFlagSet,1,2))
+	$NumberOfEaWithFlagSet = Dec(_SwapEndian($NumberOfEaWithFlagSet),2)
 ;	ConsoleWrite("$NumberOfEaWithFlagSet = " & $NumberOfEaWithFlagSet & @crlf)
 	$SizeOfUnpackedEas = StringMid($Entry,$LocalAttributeOffset+8,8)
-	Global $SizeOfUnpackedEas = Dec(StringMid($SizeOfUnpackedEas,7,2) & StringMid($SizeOfUnpackedEas,5,2) & StringMid($SizeOfUnpackedEas,3,2) & StringMid($SizeOfUnpackedEas,1,2))
+	$SizeOfUnpackedEas = Dec(_SwapEndian($SizeOfUnpackedEas),2)
 ;	ConsoleWrite("$SizeOfUnpackedEas = " & $SizeOfUnpackedEas & @crlf)
 	$EAInfoArr[0][$Current_Attrib_Number] = "EA Info Number " & $Current_Attrib_Number
 	$EAInfoArr[1][$Current_Attrib_Number] = $CurrentAttributeName
@@ -2484,28 +2509,29 @@ Func _Get_EaInformation($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$EAInfoArr[3][$Current_Attrib_Number] = $NumberOfEaWithFlagSet
 	$EAInfoArr[4][$Current_Attrib_Number] = $SizeOfUnpackedEas
 EndFunc
-
+;8+2+2+2+namelength+valuesize
 Func _Get_Ea($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	Local $LocalAttributeOffset = 1,$TheEa,$OffsetToNextEa,$EaFlags,$EaNameLength,$EaValueLength,$EaCounter=0
-	$TheEa = StringMid($Entry,$LocalAttributeOffset,$SizeOfUnpackedEas*2)
-;	ConsoleWrite("$TheEa = " & $TheEa & @crlf)
-;	ConsoleWrite(_HexEncode("0x"&$TheEa) & @crlf)
+;	$TheEa = StringMid($Entry,$LocalAttributeOffset,$SizeOfUnpackedEas*2)
+	$TheEa = StringMid($Entry,$LocalAttributeOffset)
+	ConsoleWrite("$TheEa: " & @crlf)
+	ConsoleWrite(_HexEncode("0x"&$TheEa) & @crlf)
 	$OffsetToNextEa = StringMid($Entry,$LocalAttributeOffset,8)
 ;	ConsoleWrite("$OffsetToNextEa = " & $OffsetToNextEa & @crlf)
-	$OffsetToNextEa = Dec(StringMid($OffsetToNextEa,7,2) & StringMid($OffsetToNextEa,5,2) & StringMid($OffsetToNextEa,3,2) & StringMid($OffsetToNextEa,1,2))
+	$OffsetToNextEa = Dec(_SwapEndian($OffsetToNextEa),2)
 ;	ConsoleWrite("$OffsetToNextEa = " & $OffsetToNextEa & @crlf)
 	$EaFlags = StringMid($Entry,$LocalAttributeOffset+8,2)
 ;	ConsoleWrite("$EaFlags = " & $EaFlags & @crlf)
 	$EaNameLength = Dec(StringMid($Entry,$LocalAttributeOffset+10,2))
 ;	ConsoleWrite("$EaNameLength = " & $EaNameLength & @crlf)
 	$EaValueLength = StringMid($Entry,$LocalAttributeOffset+12,4)
-	$EaValueLength = Dec(StringMid($EaValueLength,3,2) & StringMid($EaValueLength,1,2))
+	$EaValueLength = Dec(_SwapEndian($EaValueLength),2)
 ;	ConsoleWrite("$EaValueLength = " & $EaValueLength & @crlf)
 	$EaName = StringMid($Entry,$LocalAttributeOffset+16,$EaNameLength*2)
 ;	ConsoleWrite("$EaName = " & $EaName & @crlf)
 	$EaName = _HexToString($EaName)
 ;	ConsoleWrite("$EaName = " & $EaName & @crlf)
-	$EaValue = StringMid($Entry,$LocalAttributeOffset+16+($EaNameLength*2),$EaValueLength*2)
+	$EaValue = StringMid($Entry,$LocalAttributeOffset+2+16+($EaNameLength*2),$EaValueLength*2)
 ;	ConsoleWrite("$EaValue = " & $EaValue & @crlf)
 	$EAArr[0][$Current_Attrib_Number] = "EA Number " & $Current_Attrib_Number
 	$EAArr[1][$Current_Attrib_Number] = $CurrentAttributeName
@@ -2515,7 +2541,8 @@ Func _Get_Ea($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$EAArr[5][$Current_Attrib_Number] = $EaValueLength
 	$EAArr[6][$Current_Attrib_Number] = $EaName
 	$EAArr[7][$Current_Attrib_Number] = $EaValue
-	$NextEaOffset = $LocalAttributeOffset+22+($EaNameLength*2)+($EaValueLength*2)
+;	$NextEaOffset = $LocalAttributeOffset+22+($EaNameLength*2)+($EaValueLength*2)
+	$NextEaOffset = $LocalAttributeOffset+8+16+($EaNameLength*2)+($EaValueLength*2)
 	Do
 		$EaCounter += 5
 		$NextEaFlag = StringMid($Entry,$NextEaOffset+8,2)
@@ -2523,15 +2550,14 @@ Func _Get_Ea($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$NextEaNameLength = Dec(StringMid($Entry,$NextEaOffset+10,2))
 ;		ConsoleWrite("$NextEaNameLength = " & $NextEaNameLength & @crlf)
 		$NextEaValueLength = StringMid($Entry,$NextEaOffset+12,4)
-		$NextEaValueLength = Dec(StringMid($NextEaValueLength,3,2) & StringMid($NextEaValueLength,1,2))
+		$NextEaValueLength = Dec(_SwapEndian($NextEaValueLength),2)
 ;		ConsoleWrite("$NextEaValueLength = " & $NextEaValueLength & @crlf)
 		$NextEaName = StringMid($Entry,$NextEaOffset+16,$NextEaNameLength*2)
 ;		ConsoleWrite("$NextEaName = " & $NextEaName & @crlf)
 		$NextEaName = _HexToString($NextEaName)
-		$NextEaValue = StringMid($Entry,$NextEaOffset+16+($NextEaNameLength*2),$NextEaValueLength*2)
+		$NextEaValue = StringMid($Entry,$NextEaOffset+2+16+($NextEaNameLength*2),$NextEaValueLength*2)
 ;		ConsoleWrite("$NextEaName = " & $NextEaName & @crlf)
 ;		ConsoleWrite("$NextEaValue = " & $NextEaValue & @crlf)
-		$NextEaOffset = $NextEaOffset+22+2+($NextEaNameLength*2)+($NextEaValueLength*2)
 		ReDim $EAArr[8+$EaCounter][$Current_Attrib_Number+1]
 		Local $Counter1 = 7+($EaCounter-4)
 		Local $Counter2 = 7+($EaCounter-3)
@@ -2548,17 +2574,11 @@ Func _Get_Ea($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$EAArr[$Counter3][$Current_Attrib_Number] = $NextEaValueLength
 		$EAArr[$Counter4][$Current_Attrib_Number] = $NextEaName
 		$EAArr[$Counter5][$Current_Attrib_Number] = $NextEaValue
-	Until $NextEaOffset >= $SizeOfUnpackedEas*2
+;		$NextEaOffset = $NextEaOffset+22+2+($NextEaNameLength*2)+($NextEaValueLength*2)
+		$NextEaOffset = $NextEaOffset+16+($NextEaNameLength*2)+($NextEaValueLength*2)
+		If $NextEaOffset + 18 > StringLen($TheEa) Then ExitLoop
+	Until $NextEaOffset >= StringLen($TheEa)
 ;	_ArrayDisplay($EAArr,"$EAArr")
-EndFunc
-
-Func _Get_LoggedUtilityStream($Entry,$Current_Attrib_Number,$CurrentAttributeName)
-	Local $LocalAttributeOffset = 1
-	$TheLoggedUtilityStream = StringMid($Entry,$LocalAttributeOffset)
-;	ConsoleWrite("$TheLoggedUtilityStream = " & $TheLoggedUtilityStream & @crlf)
-	$LUSArr[0][$Current_Attrib_Number] = "LoggedUtilityStream Number " & $Current_Attrib_Number
-	$LUSArr[1][$Current_Attrib_Number] = $CurrentAttributeName
-	$LUSArr[2][$Current_Attrib_Number] = $TheLoggedUtilityStream
 EndFunc
 
 Func _Get_IndexRoot($Entry,$Current_Attrib_Number,$CurrentAttributeName)
@@ -3183,3 +3203,82 @@ Func _WinTime_FormatTime($iYear,$iMonth,$iDay,$iHour,$iMin,$iSec,$iMilSec,$iDayO
 	Return $sDateTimeStr
 EndFunc
 ; end: by Ascend4nt ----------------------------
+
+Func _Get_LoggedUtilityStream($Entry,$Current_Attrib_Number,$CurrentAttributeName)
+	Local $LocalAttributeOffset = 1
+	$TheLoggedUtilityStream = StringMid($Entry,$LocalAttributeOffset)
+;	ConsoleWrite("$TheLoggedUtilityStream = " & $TheLoggedUtilityStream & @crlf)
+	$LUSArr[0][$Current_Attrib_Number] = "LoggedUtilityStream Number " & $Current_Attrib_Number
+	$LUSArr[1][$Current_Attrib_Number] = $CurrentAttributeName
+	$LUSArr[2][$Current_Attrib_Number] = $TheLoggedUtilityStream
+	If $CurrentAttributeName = "$TXF_DATA" Then
+		_Decode_TXF_DATA($TheLoggedUtilityStream)
+	EndIf
+EndFunc
+#cs
+Func _Get_LoggedUtilityStream($Entry,$CurrentAttributeName)
+	Local $LocalAttributeOffset = 1
+	$TheLoggedUtilityStream = StringMid($Entry,$LocalAttributeOffset)
+	If $VerboseOn Then
+		_DumpOutput("_Get_LoggedUtilityStream():" & @CRLF)
+		_DumpOutput("$TheLoggedUtilityStream = " & $TheLoggedUtilityStream & @crlf)
+	EndIf
+	$TextInformation &= ";LoggedUtilityStream="&$TheLoggedUtilityStream
+	If $CurrentAttributeName = "$TXF_DATA" Then
+		_Decode_TXF_DATA($TheLoggedUtilityStream,1)
+	EndIf
+EndFunc
+#ce
+Func _Decode_TXF_DATA($InputData)
+	Local $StartOffset=1
+	Global $TxfDataArr[8][2]
+	$InputDataSize = StringLen($InputData)
+
+	If $InputDataSize < 113 And $InputDataSize > 96 Then
+
+		$MftRef_RM_Root = StringMid($InputData, $StartOffset, 12)
+		$MftRef_RM_Root = Dec(_SwapEndian($MftRef_RM_Root),2)
+		$MftRefSeqNo_RM_Root = StringMid($InputData, $StartOffset + 12, 4)
+		$MftRefSeqNo_RM_Root = Dec(_SwapEndian($MftRefSeqNo_RM_Root),2)
+
+		$UsnIndex = StringMid($InputData, $StartOffset + 16, 16)
+		$UsnIndex = "0x"&_SwapEndian($UsnIndex)
+
+		;Increments with 1. The last TxfFileId is referenced in $Tops standard $DATA stream at offset 0x28
+		$TxfFileId = StringMid($InputData, $StartOffset + 32, 16)
+		$TxfFileId = "0x"&_SwapEndian($TxfFileId)
+
+		;Offset into $TxfLogContainer00000000000000000001
+		$LsnUserData = StringMid($InputData, $StartOffset + 48, 16)
+		$LsnUserData = "0x"&_SwapEndian($LsnUserData)
+
+		;Offset into $TxfLogContainer00000000000000000001
+		$LsnNtfsMetadata = StringMid($InputData, $StartOffset + 64, 16)
+		$LsnNtfsMetadata = "0x"&_SwapEndian($LsnNtfsMetadata)
+
+		$LsnDirectoryIndex = StringMid($InputData, $StartOffset + 80, 16)
+		$LsnDirectoryIndex = "0x"&_SwapEndian($LsnDirectoryIndex)
+
+		$UnknownFlag = StringMid($InputData, $StartOffset + 96, 16)
+		$UnknownFlag = "0x"&_SwapEndian($UnknownFlag)
+
+
+		$TxfDataArr[0][0] = "MftRef_RM_Root"
+		$TxfDataArr[1][0] = "MftRefSeqNo_RM_Root"
+		$TxfDataArr[2][0] = "UsnIndex"
+		$TxfDataArr[3][0] = "TxfFileId"
+		$TxfDataArr[4][0] = "LsnUserData"
+		$TxfDataArr[5][0] = "LsnNtfsMetadata"
+		$TxfDataArr[6][0] = "LsnDirectoryIndex"
+		$TxfDataArr[7][0] = "UnknownFlag"
+		$TxfDataArr[0][1] = $MftRef_RM_Root
+		$TxfDataArr[1][1] = $MftRefSeqNo_RM_Root
+		$TxfDataArr[2][1] = $UsnIndex
+		$TxfDataArr[3][1] = $TxfFileId
+		$TxfDataArr[4][1] = $LsnUserData
+		$TxfDataArr[5][1] = $LsnNtfsMetadata
+		$TxfDataArr[6][1] = $LsnDirectoryIndex
+		$TxfDataArr[7][1] = $UnknownFlag
+	EndIf
+
+EndFunc
