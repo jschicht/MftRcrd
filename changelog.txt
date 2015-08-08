@@ -1,4 +1,7 @@
 
+v1.0.0.32
+Fixed bug in the $REPARSE_POINT decoder that caused printname and substitutename not to be resolved correctly.
+
 v1.0.0.31
 Added missing decode of "Quota Charged" in $STANDARD_INFORMATION attribute.
 Added missing decode of "EaSize" in $FILE_NAME attribute.

@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.31
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.32
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -90,7 +90,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.31" & @CRLF)
+ConsoleWrite("Version 1.0.0.32" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -2425,58 +2425,70 @@ Func _Get_Bitmap($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$TheBitmap = StringMid($Entry,$LocalAttributeOffset)
 EndFunc
 
+Func _GetReparseType($ReparseType)
+	;http://msdn.microsoft.com/en-us/library/dd541667(v=prot.10).aspx
+	;http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
+	Select
+		Case $ReparseType = '0x80000005'
+			Return 'DRIVER_EXTENDER'
+		Case $ReparseType = '0x80000006'
+			Return 'HSM2'
+		Case $ReparseType = '0x80000007'
+			Return 'SIS'
+		Case $ReparseType = '0x80000008'
+			Return 'WIM'
+		Case $ReparseType = '0x80000009'
+			Return 'CSV'
+		Case $ReparseType = '0x8000000A'
+			Return 'DFS'
+		Case $ReparseType = '0x8000000B'
+			Return 'FILTER_MANAGER'
+		Case $ReparseType = '0x80000012'
+			Return 'DFSR'
+		Case $ReparseType = '0x80000013'
+			Return 'DEDUP'
+		Case $ReparseType = '0x80000014'
+			Return 'NFS'
+		Case $ReparseType = '0xA0000003'
+			Return 'MOUNT_POINT'
+		Case $ReparseType = '0xA000000C'
+			Return 'SYMLINK'
+		Case $ReparseType = '0xC0000004'
+			Return 'HSM'
+		Case Else
+			Return 'UNKNOWN(' & $ReparseType & ')'
+	EndSelect
+EndFunc
+
 Func _Get_ReparsePoint($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	Local $LocalAttributeOffset = 1,$ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ReparseSubstititeName,$ReparsePrintName
 	$ReparseType = StringMid($Entry,$LocalAttributeOffset,8)
-	$ReparseType = "0x"& StringMid($ReparseType,7,2) & StringMid($ReparseType,5,2) & StringMid($ReparseType,3,2) & StringMid($ReparseType,1,2)
-;http://msdn.microsoft.com/en-us/library/dd541667(v=prot.10).aspx
-;http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
-	Select
-		Case $ReparseType = '0xA000000C'
-			$ReparseType = 'SYMLINK'
-		Case $ReparseType = '0x8000000B'
-			$ReparseType = 'FILTER_MANAGER'
-		Case $ReparseType = '0x80000012'
-			$ReparseType = 'DFSR'
-		Case $ReparseType = '0x8000000A'
-			$ReparseType = 'DFS'
-		Case $ReparseType = '0x80000007'
-			$ReparseType = 'SIS'
-		Case $ReparseType = '0x80000005'
-			$ReparseType = 'DRIVER_EXTENDER'
-		Case $ReparseType = '0x80000006'
-			$ReparseType = 'HSM2'
-		Case $ReparseType = '0xC0000004'
-			$ReparseType = 'HSM'
-		Case $ReparseType = '0xA0000003'
-			$ReparseType = 'MOUNT_POINT'
-		Case $ReparseType = '0x80000009'
-			$ReparseType = 'CSV'
-		Case $ReparseType = '0x80000013'
-			$ReparseType = 'DEDUP'
-		Case $ReparseType = '0x80000014'
-			$ReparseType = 'NFS'
-		Case $ReparseType = '0x80000008'
-			$ReparseType = 'WIM'
-		Case Else
-			$ReparseType = 'UNKNOWN'
-	EndSelect
+	$ReparseType = "0x"& _SwapEndian($ReparseType)
+	$ReparseType = _GetReparseType($ReparseType)
 	$ReparseDataLength = StringMid($Entry,$LocalAttributeOffset+8,4)
-	$ReparseDataLength = Dec(StringMid($ReparseDataLength,3,2) & StringMid($ReparseDataLength,1,2))
+	$ReparseDataLength = Dec(_SwapEndian($ReparseDataLength),2)
 	$ReparsePadding = StringMid($Entry,$LocalAttributeOffset+12,4)
 	$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
 	$ReparseSubstititeNameOffset = StringMid($ReparseData,1,4)
-	$ReparseSubstititeNameOffset = Dec(StringMid($ReparseSubstititeNameOffset,3,2) & StringMid($ReparseSubstititeNameOffset,1,2))
+	$ReparseSubstititeNameOffset = Dec(_SwapEndian($ReparseSubstititeNameOffset),2)
 	$ReparseSubstituteNameLength = StringMid($ReparseData,5,4)
-	$ReparseSubstituteNameLength = Dec(StringMid($ReparseSubstituteNameLength,3,2) & StringMid($ReparseSubstituteNameLength,1,2))
+	$ReparseSubstituteNameLength = Dec(_SwapEndian($ReparseSubstituteNameLength),2)
 	$ReparsePrintNameOffset = StringMid($ReparseData,9,4)
-	$ReparsePrintNameOffset = Dec(StringMid($ReparsePrintNameOffset,3,2) & StringMid($ReparsePrintNameOffset,1,2))
+	$ReparsePrintNameOffset = Dec(_SwapEndian($ReparsePrintNameOffset),2)
 	$ReparsePrintNameLength = StringMid($ReparseData,13,4)
-	$ReparsePrintNameLength = Dec(StringMid($ReparsePrintNameLength,3,2) & StringMid($ReparsePrintNameLength,1,2))
-	$ReparseSubstititeName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
-	$ReparseSubstititeName = _UnicodeHexToStr($ReparseSubstititeName)
-	$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+32)+($ReparsePrintNameOffset*2),$ReparsePrintNameLength*2)
-	$ReparsePrintName = _UnicodeHexToStr($ReparsePrintName)
+	$ReparsePrintNameLength = Dec(_SwapEndian($ReparsePrintNameLength),2)
+	;-----if $ReparseSubstititeNameOffset<>0 then the order is reversed and parsed from end of $ReparseData ????????
+	If StringMid($ReparseData,1,4) <> "0000" Then
+		$ReparseSubstititeName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2),$ReparseSubstituteNameLength*2)
+		$ReparseSubstititeName = BinaryToString("0x"&$ReparseSubstititeName,2)
+		$ReparsePrintName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2)-($ReparsePrintNameLength*2),$ReparsePrintNameLength*2)
+		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+	Else
+		$ReparseSubstititeName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
+		$ReparseSubstititeName = BinaryToString("0x"&$ReparseSubstititeName,2)
+		$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+32)+($ReparsePrintNameOffset*2),$ReparsePrintNameLength*2)
+		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+	EndIf
 	$RPArr[0][$Current_Attrib_Number] = "RP Number " & $Current_Attrib_Number
 	$RPArr[1][$Current_Attrib_Number] = $CurrentAttributeName
 	$RPArr[2][$Current_Attrib_Number] = $ReparseType
