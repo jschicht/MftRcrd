@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.32
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.33
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -90,7 +90,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.32" & @CRLF)
+ConsoleWrite("Version 1.0.0.33" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -1754,6 +1754,7 @@ Func _Get_FileName($MFTEntry,$FN_Offset,$FN_Size,$FN_Number)
 	$FN_NameLength = StringMid($MFTEntry,$FN_Offset+176,2)
 	$FN_NameLength = Dec($FN_NameLength)
 	$FN_NameType = StringMid($MFTEntry,$FN_Offset+178,2)
+	$FN_NameSpace = Dec($FN_NameType)
 	Select
 		Case $FN_NameType = '00'
 			$FN_NameType = 'POSIX'
@@ -1766,7 +1767,7 @@ Func _Get_FileName($MFTEntry,$FN_Offset,$FN_Size,$FN_Number)
 		Case $FN_NameType <> '00' AND $FN_NameType <> '01' AND $FN_NameType <> '02' AND $FN_NameType <> '03'
 			$FN_NameType = 'UNKNOWN'
 	EndSelect
-	$FN_NameSpace = $FN_NameLength-1 ;Not really
+
 	$FN_FileName = StringMid($MFTEntry,$FN_Offset+180,($FN_NameLength+$FN_NameSpace)*2)
 	$FN_FileName = _UnicodeHexToStr($FN_FileName)
 	If StringLen($FN_FileName) <> $FN_NameLength Then $INVALID_FILENAME = 1

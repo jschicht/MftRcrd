@@ -1,3 +1,5 @@
+v1.0.0.33
+Fixed incorrect namespace value in $FILE_NAME.
 
 v1.0.0.32
 Fixed bug in the $REPARSE_POINT decoder that caused printname and substitutename not to be resolved correctly.
