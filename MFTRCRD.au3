@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.33
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.34
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -15,6 +15,7 @@
 ;
 ; https://github.com/jschicht
 ;
+Global $AttrDefArray[6][1]
 Global $ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ResidentIndx, $_COMMON_KERNEL32DLL=DllOpen("kernel32.dll")
 Global $BrowsedFile,$TargetDrive = "", $ALInnerCouner, $MFTSize, $TargetIsOffset=0,$TargetOffset,$DoExtraction=0
 Global $SectorsPerCluster,$MFT_Record_Size,$BytesPerCluster,$BytesPerSector,$MFT_Offset
@@ -90,7 +91,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.33" & @CRLF)
+ConsoleWrite("Version 1.0.0.34" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -901,6 +902,12 @@ While 1
 			_ArrayAdd($DataQ, StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
 			ReDim $HexDumpData[$DATA_Number]
 			_Arrayadd($HexDumpData,StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
+			If $HEADER_MFTREcordNumber = 4 Then
+				$CoreData = _GetAttributeEntry(StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
+				$CoreDataChunk = $CoreData[0]
+				$CoreDataName = $CoreData[1]
+				_Decode_AttrDef($CoreDataChunk)
+			EndIf
 		Case $AttributeType = $INDEX_ROOT
 			$INDEX_ROOT_ON = "TRUE"
 			$INDEXROOT_Number += 1
@@ -1768,7 +1775,7 @@ Func _Get_FileName($MFTEntry,$FN_Offset,$FN_Size,$FN_Number)
 			$FN_NameType = 'UNKNOWN'
 	EndSelect
 
-	$FN_FileName = StringMid($MFTEntry,$FN_Offset+180,($FN_NameLength+$FN_NameSpace)*2)
+	$FN_FileName = StringMid($MFTEntry,$FN_Offset+180,$FN_NameLength*2*2)
 	$FN_FileName = _UnicodeHexToStr($FN_FileName)
 	If StringLen($FN_FileName) <> $FN_NameLength Then $INVALID_FILENAME = 1
 	$FNArr[0][$FN_Number] = "FN Number " & $FN_Number
@@ -1988,6 +1995,15 @@ If $AttributesArr[8][2] = "TRUE" Then; $DATA
 		EndIf
 	Next
 ;	_ArrayDisplay($HexDumpData,"$HexDumpData")
+	If $HEADER_MFTREcordNumber = 4 Then
+		ConsoleWrite("ATTRIBUTE DEFINITIONS:" & @CRLF)
+		For $p = 1 To UBound($AttrDefArray,2)-1
+			ConsoleWrite(@CRLF)
+			For $j = 0 To UBound($AttrDefArray)-1
+				ConsoleWrite($AttrDefArray[$j][0] & ": " & $AttrDefArray[$j][$p] & @CRLF)
+			Next
+		Next
+	EndIf
 EndIf
 
 If $AttributesArr[9][2] = "TRUE" Then; $INDEX_ROOT
@@ -3294,4 +3310,128 @@ Func _Decode_TXF_DATA($InputData)
 		$TxfDataArr[7][1] = $UnknownFlag
 	EndIf
 
+EndFunc
+
+Func _Decode_AttrDef($InputData)
+	Local $AttrCounter=0, $StartOffset=1,$InputDataSize = StringLen($InputData)
+;	Local
+
+	$AttrDefArray[0][0] = "Attribute Name"
+	$AttrDefArray[1][0] = "Display Rule"
+	$AttrDefArray[2][0] = "Collation Rule"
+	$AttrDefArray[3][0] = "Attribute Flags"
+	$AttrDefArray[4][0] = "Minimum Length"
+	$AttrDefArray[5][0] = "Maximum Length"
+;	ConsoleWrite("_Decode_AttrDef():" & @crlf)
+;	ConsoleWrite(_HexEncode("0x"& StringMid($InputData,1)) & @crlf)
+
+	Do
+		$AttrCounter += 1
+		$AttrName = StringMid($InputData, $StartOffset, 256)
+		$AttrNameResolved = ""
+		For $i = 1 To 256 Step 4
+			$Char = StringMid($AttrName,$i,4)
+			If $Char = '0000' Then ExitLoop
+;			$AttrNameResolved &= $Char
+			$AttrNameResolved &= StringMid($Char,1,2)
+;			ConsoleWrite("$AttrNameResolved: " & $AttrNameResolved & @crlf)
+		Next
+		$AttrNameResolved = _HexToString($AttrNameResolved)
+;		ConsoleWrite("$AttrNameResolved: " & $AttrNameResolved & @crlf)
+
+		$AttrCode = StringMid($InputData, $StartOffset + 256, 8)
+		$AttrCodeResolved = _ResolveAttributeType(StringMid($AttrCode,1,4))
+		If $AttrNameResolved <> $AttrCodeResolved Then
+;			ConsoleWrite("Error: Something wrong in $AttrDef" & @crlf)
+			ExitLoop
+		EndIf
+
+		$AttrDisplayRule = StringMid($InputData, $StartOffset + 264, 8)
+		$AttrDisplayRule = _SwapEndian($AttrDisplayRule)
+
+		$AttrCollationRule = StringMid($InputData, $StartOffset + 272, 8)
+		$AttrCollationRule = _SwapEndian($AttrCollationRule)
+
+		$AttrFlags = StringMid($InputData, $StartOffset + 280, 8)
+		$AttrFlags = _SwapEndian($AttrFlags)
+		$AttrFlagsResolved = _DecodeAttributeFlags("0x"&$AttrFlags)
+
+		$AttrMinLength = StringMid($InputData, $StartOffset + 288, 16)
+;		$AttrMinLength = Dec(_SwapEndian($AttrMinLength),2)
+		$AttrMinLength = "0x"&_SwapEndian($AttrMinLength)
+
+		$AttrMaxLength = StringMid($InputData, $StartOffset + 304, 16)
+;		$AttrMaxLength = Dec(_SwapEndian($AttrMaxLength),2)
+		$AttrMaxLength = "0x"&_SwapEndian($AttrMaxLength)
+
+		ReDim $AttrDefArray[6][$AttrCounter+1]
+		$AttrDefArray[0][$AttrCounter] = $AttrNameResolved
+		$AttrDefArray[1][$AttrCounter] = "0x"&$AttrDisplayRule
+		$AttrDefArray[2][$AttrCounter] = "0x"&$AttrCollationRule
+		$AttrDefArray[3][$AttrCounter] = $AttrFlagsResolved
+;		$AttrDefArray[3][$AttrCounter] = "0x"&$AttrFlags
+		$AttrDefArray[4][$AttrCounter] = $AttrMinLength
+		$AttrDefArray[5][$AttrCounter] = $AttrMaxLength
+		$StartOffset += 160*2
+	Until $StartOffset >= $InputDataSize
+
+;	_ArrayDisplay($AttrDefArray,"$AttrDefArray")
+EndFunc
+
+Func _DecodeAttributeFlags($AFinput)
+	Local $AFoutput = ""
+	If $AFinput = 0x0000 Then Return 'ZERO'
+	;This flag is set if the attribute may be indexed:
+	If BitAND($AFinput, 0x0002) Then $AFoutput &= 'INDEXABLE+'
+	;This flag is set if the attribute may occur more than once, such as is allowed for the File Name attribute:
+	If BitAND($AFinput, 0x0004) Then $AFoutput &= 'DUPLICATES_ALLOWED+'
+	;This flag is set if the value of the attribute may not be entirely null, i.e., all binary 0's:
+	If BitAND($AFinput, 0x0008) Then $AFoutput &= 'MAY_NOT_BE_NULL+'
+	;This attribute must be indexed, and no two attributes may exist with the same value in the same file record segment:
+	If BitAND($AFinput, 0x0010) Then $AFoutput &= 'MUST_BE_INDEXED+'
+	;This attribute must be named, and no two attributes may exist with the same name in the same file record segment:
+	If BitAND($AFinput, 0x0020) Then $AFoutput &= 'MUST_BE_NAMED+'
+	;This attribute must be in the Resident Form
+	If BitAND($AFinput, 0x0040) Then $AFoutput &= 'MUST_BE_RESIDENT+'
+	;Modifications to this attribute should be logged even if the attribute is nonresident:
+	If BitAND($AFinput, 0x0080) Then $AFoutput &= 'LOG_NONRESIDENT+'
+	$AFoutput = StringTrimRight($AFoutput, 1)
+	Return $AFoutput
+EndFunc
+
+Func _ResolveAttributeType($input)
+	Select
+		Case $input = "1000"
+			Return "$STANDARD_INFORMATION"
+		Case $input = "2000"
+			Return "$ATTRIBUTE_LIST"
+		Case $input = "3000"
+			Return "$FILE_NAME"
+		Case $input = "4000"
+			Return "$OBJECT_ID"
+		Case $input = "5000"
+			Return "$SECURITY_DESCRIPTOR"
+		Case $input = "6000"
+			Return "$VOLUME_NAME"
+		Case $input = "7000"
+			Return "$VOLUME_INFORMATION"
+		Case $input = "8000"
+			Return "$DATA"
+		Case $input = "9000"
+			Return "$INDEX_ROOT"
+		Case $input = "a000"
+			Return "$INDEX_ALLOCATION"
+		Case $input = "b000"
+			Return "$BITMAP"
+		Case $input = "c000"
+			Return "$REPARSE_POINT"
+		Case $input = "d000"
+			Return "$EA_INFORMATION"
+		Case $input = "e000"
+			Return "$EA"
+		Case $input = "0001"
+			Return "$LOGGED_UTILITY_STREAM"
+		Case Else
+			Return "UNKNOWN"
+	EndSelect
 EndFunc

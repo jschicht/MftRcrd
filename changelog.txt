@@ -1,3 +1,8 @@
+v1.0.0.34
+Fixed incorrectly filename resolve introduced in v 1.0.0.33.
+Added decode of attribute definitions for $AttrDef.
+Changed license to MIT.
+
 v1.0.0.33
 Fixed incorrect namespace value in $FILE_NAME.
 
