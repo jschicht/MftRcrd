@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.34
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.35
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -91,7 +91,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.34" & @CRLF)
+ConsoleWrite("Version 1.0.0.35" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -3341,10 +3341,10 @@ Func _Decode_AttrDef($InputData)
 
 		$AttrCode = StringMid($InputData, $StartOffset + 256, 8)
 		$AttrCodeResolved = _ResolveAttributeType(StringMid($AttrCode,1,4))
-		If $AttrNameResolved <> $AttrCodeResolved Then
+;		If $AttrNameResolved <> $AttrCodeResolved Then
 ;			ConsoleWrite("Error: Something wrong in $AttrDef" & @crlf)
-			ExitLoop
-		EndIf
+;			ExitLoop
+;		EndIf
 
 		$AttrDisplayRule = StringMid($InputData, $StartOffset + 264, 8)
 		$AttrDisplayRule = _SwapEndian($AttrDisplayRule)
@@ -3373,7 +3373,7 @@ Func _Decode_AttrDef($InputData)
 		$AttrDefArray[4][$AttrCounter] = $AttrMinLength
 		$AttrDefArray[5][$AttrCounter] = $AttrMaxLength
 		$StartOffset += 160*2
-	Until $StartOffset >= $InputDataSize
+	Until $StartOffset > $InputDataSize
 
 ;	_ArrayDisplay($AttrDefArray,"$AttrDefArray")
 EndFunc
