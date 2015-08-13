@@ -1,3 +1,6 @@
+v1.0.0.36
+Fixed incorrect decode of GUID's, relevant for $OBJECT_ID.
+
 v1.0.0.35
 Expanded the $AttrDef decoder so it will decode also non-default entries.
 
