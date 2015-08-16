@@ -2502,6 +2502,10 @@ Func _GetReparseType($ReparseType)
 			Return 'SYMLINK'
 		Case $ReparseType = '0xC0000004'
 			Return 'HSM'
+		Case $ReparseType = '0x80000015'
+			Return 'FILE_PLACEHOLDER'
+		Case $ReparseType = '0x80000017'
+			Return 'WOF'
 		Case Else
 			Return 'UNKNOWN(' & $ReparseType & ')'
 	EndSelect
