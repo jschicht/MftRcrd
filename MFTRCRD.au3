@@ -4,7 +4,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.36
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.37
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -16,7 +16,7 @@
 ; https://github.com/jschicht
 ;
 Global $AttrDefArray[6][1]
-Global $ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ResidentIndx, $_COMMON_KERNEL32DLL=DllOpen("kernel32.dll")
+Global $ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstituteNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ResidentIndx, $_COMMON_KERNEL32DLL=DllOpen("kernel32.dll")
 Global $BrowsedFile,$TargetDrive = "", $ALInnerCouner, $MFTSize, $TargetIsOffset=0,$TargetOffset,$DoExtraction=0
 Global $SectorsPerCluster,$MFT_Record_Size,$BytesPerCluster,$BytesPerSector,$MFT_Offset
 Global $HEADER_LSN,$HEADER_SequenceNo,$HEADER_Flags,$HEADER_RecordRealSize,$HEADER_RecordAllocSize,$HEADER_BaseRecord
@@ -29,8 +29,8 @@ Global $DATA_CompressionUnitSize,$DATA_ON,$DATA_CompressedSize,$DATA_LengthOfAtt
 Global $DATA_AllocatedSize,$DATA_RealSize,$DATA_InitializedStreamSize,$RunListOffset,$DataRun,$IsCompressed,$IsSparse
 Global $RUN_VCN[1],$RUN_Clusters[1],$MFT_RUN_Clusters[1],$MFT_RUN_VCN[1],$NameQ[5],$DataQ[1],$sBuffer,$AttrQ[1], $RUN_Sparse[1], $MFT_RUN_Sparse[1], $RUN_Complete[1][4], $MFT_RUN_Complete[1][4], $RUN_Sectors, $MFT_RUN_Sectors
 Global $SI_CTime,$SI_ATime,$SI_MTime,$SI_RTime,$SI_FilePermission,$SI_USN,$Errors,$RecordSlackSpace
-Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxMFTRefSeqNoArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxMFTParentRefSeqNoArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
-Global $IsDirectory = 0, $AttributesArr[18][4], $SIArr[14][2], $FNArr[15][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2],$VolumeNameArr[2][2],$VolumeInformationArr[3][2],$RPArr[11][2],$LUSArr[3][2],$EAInfoArr[5][2],$EAArr[8][2],$IRArr[12][2],$IndxArr[20][2]
+Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxMFTRefSeqNoArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxMFTParentRefSeqNoArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxReparseTagArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
+Global $IsDirectory = 0, $AttributesArr[18][4], $SIArr[14][2], $FNArr[15][1], $RecordHdrArr[16][2], $ObjectIDArr[5][2], $DataArr[21][2], $AttribListArr[9][2],$VolumeNameArr[2][2],$VolumeInformationArr[3][2],$RPArr[12][2],$LUSArr[3][2],$EAInfoArr[5][2],$EAArr[8][2],$IRArr[12][2],$IndxArr[20][2]
 Global $HexDumpRecordSlack[1],$HexDumpRecord[1],$HexDumpHeader[1],$HexDumpStandardInformation[1],$HexDumpAttributeList[1],$HexDumpFileName[1],$HexDumpObjectId[1],$HexDumpSecurityDescriptor[1],$HexDumpVolumeName[1],$HexDumpVolumeInformation[1],$HexDumpData[1],$HexDumpIndexRoot[1],$HexDumpIndexAllocation[1],$HexDumpBitmap[1],$HexDumpReparsePoint[1],$HexDumpEaInformation[1],$HexDumpEa[1],$HexDumpPropertySet[1],$HexDumpLoggedUtilityStream[1],$HexDumpIndxRecord[1]
 Global $FN_Number,$DATA_Number,$SI_Number,$ATTRIBLIST_Number,$OBJID_Number,$SECURITY_Number,$VOLNAME_Number,$VOLINFO_Number,$INDEXROOT_Number,$INDEXALLOC_Number,$BITMAP_Number,$REPARSEPOINT_Number,$EAINFO_Number,$EA_Number,$PROPERTYSET_Number,$LOGGEDUTILSTREAM_Number
 Global $STANDARD_INFORMATION_ON,$ATTRIBUTE_LIST_ON,$FILE_NAME_ON,$OBJECT_ID_ON,$SECURITY_DESCRIPTOR_ON,$VOLUME_NAME_ON,$VOLUME_INFORMATION_ON,$DATA_ON,$INDEX_ROOT_ON,$INDEX_ALLOCATION_ON,$BITMAP_ON,$REPARSE_POINT_ON,$EA_INFORMATION_ON,$EA_ON,$PROPERTY_SET_ON,$LOGGED_UTILITY_STREAM_ON,$ATTRIBUTE_END_MARKER_ON
@@ -91,7 +91,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.36" & @CRLF)
+ConsoleWrite("Version 1.0.0.37" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -495,7 +495,7 @@ Func _ClearVar()
 	$ReparseType=""
 	$ReparseDataLength=""
 	$ReparsePadding=""
-	$ReparseSubstititeNameOffset=""
+	$ReparseSubstituteNameOffset=""
 	$ReparseSubstituteNameLength=""
 	$ReparsePrintNameOffset=""
 	$ReparsePrintNameLength=""
@@ -699,7 +699,7 @@ EndFunc
 
 Func _DecodeMFTRecord($MFTEntry)
 Local $MFTEntryOrig
-Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
+Global $IndxEntryNumberArr[1],$IndxMFTReferenceArr[1],$IndxIndexFlagsArr[1],$IndxMFTReferenceOfParentArr[1],$IndxCTimeArr[1],$IndxATimeArr[1],$IndxMTimeArr[1],$IndxRTimeArr[1],$IndxAllocSizeArr[1],$IndxRealSizeArr[1],$IndxFileFlagsArr[1],$IndxReparseTagArr[1],$IndxFileNameArr[1],$IndxSubNodeVCNArr[1],$IndxNameSpaceArr[1]
 Global $HexDumpRecordSlack[1],$HexDumpRecord[1],$HexDumpHeader[1],$HexDumpStandardInformation[1],$HexDumpAttributeList[1],$HexDumpFileName[1],$HexDumpObjectId[1],$HexDumpSecurityDescriptor[1],$HexDumpVolumeName[1],$HexDumpVolumeInformation[1],$HexDumpData[1],$HexDumpIndexRoot[1],$HexDumpIndexAllocation[1],$HexDumpBitmap[1],$HexDumpReparsePoint[1],$HexDumpEaInformation[1],$HexDumpEa[1],$HexDumpPropertySet[1],$HexDumpLoggedUtilityStream[1],$HexDumpIndxRecord[1]
 Global $NameQ[5]		;clear name array
 Global $TxfDataArr[8][2]
@@ -941,7 +941,7 @@ While 1
 		Case $AttributeType = $REPARSE_POINT
 			$REPARSE_POINT_ON = "TRUE"
 			$REPARSEPOINT_Number += 1
-			ReDim $RPArr[11][$REPARSEPOINT_Number+1]
+			ReDim $RPArr[12][$REPARSEPOINT_Number+1]
 			$CoreReparsePoint = _GetAttributeEntry(StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
 			$CoreReparsePointChunk = $CoreReparsePoint[0]
 			$CoreReparsePointName = $CoreReparsePoint[1]
@@ -1389,12 +1389,13 @@ $RPArr[1][0] = "Name of Attribute"
 $RPArr[2][0] = "ReparseType"
 $RPArr[3][0] = "ReparseDataLength"
 $RPArr[4][0] = "ReparsePadding"
-$RPArr[5][0] = "ReparseSubstituteNameOffset"
-$RPArr[6][0] = "ReparseSubstituteNameLength"
-$RPArr[7][0] = "ReparsePrintNameOffset"
-$RPArr[8][0] = "ReparsePrintNameLength"
-$RPArr[9][0] = "ReparseSubstituteName"
-$RPArr[10][0] = "ReparsePrintName"
+$RPArr[5][0] = "ReparseGUID"
+$RPArr[6][0] = "ReparseSubstituteNameOffset"
+$RPArr[7][0] = "ReparseSubstituteNameLength"
+$RPArr[8][0] = "ReparsePrintNameOffset"
+$RPArr[9][0] = "ReparsePrintNameLength"
+$RPArr[10][0] = "ReparseSubstituteName"
+$RPArr[11][0] = "ReparsePrintName"
 $LUSArr[0][0] = "Field name"
 $LUSArr[1][0] = "Name of Attribute"
 $LUSArr[2][0] = "The raw Logged Utility Stream"
@@ -1436,6 +1437,7 @@ $IndxRTimeArr[0] = "RTime"
 $IndxAllocSizeArr[0] = "AllocSize"
 $IndxRealSizeArr[0] = "RealSize"
 $IndxFileFlagsArr[0] = "File flags"
+$IndxReparseTagArr[0] = "Reparse Point Tag"
 $IndxFileNameArr[0] = "FileName"
 $IndxNameSpaceArr[0] = "NameSpace"
 $IndxSubNodeVCNArr[0] = "SubNodeVCN"
@@ -1839,7 +1841,7 @@ Func _File_Attributes($FAInput)
 	If BitAND($FAInput, 0x0001) Then $FAOutput &= 'read_only+'
 	If BitAND($FAInput, 0x0002) Then $FAOutput &= 'hidden+'
 	If BitAND($FAInput, 0x0004) Then $FAOutput &= 'system+'
-	If BitAND($FAInput, 0x0010) Then $FAOutput &= 'directory+'
+	If BitAND($FAInput, 0x0010) Then $FAOutput &= 'directory1+'
 	If BitAND($FAInput, 0x0020) Then $FAOutput &= 'archive+'
 	If BitAND($FAInput, 0x0040) Then $FAOutput &= 'device+'
 	If BitAND($FAInput, 0x0080) Then $FAOutput &= 'normal+'
@@ -1853,7 +1855,8 @@ Func _File_Attributes($FAInput)
 	If BitAND($FAInput, 0x8000) Then $FAOutput &= 'integrity_stream+'
 	If BitAND($FAInput, 0x10000) Then $FAOutput &= 'virtual+'
 	If BitAND($FAInput, 0x20000) Then $FAOutput &= 'no_scrub_data+'
-	If BitAND($FAInput, 0x10000000) Then $FAOutput &= 'directory+'
+	If BitAND($FAInput, 0x40000) Then $FAOutput &= 'ea+'
+	If BitAND($FAInput, 0x10000000) Then $FAOutput &= 'directory2+'
 	If BitAND($FAInput, 0x20000000) Then $FAOutput &= 'index_view+'
 	$FAOutput = StringTrimRight($FAOutput, 1)
 	Return $FAOutput
@@ -2057,6 +2060,7 @@ If $AttributesArr[9][2] = "TRUE" Then; $INDEX_ROOT
 				ConsoleWrite($IndxAllocSizeArr[0] & ": " & $IndxAllocSizeArr[$k] & @CRLF)
 				ConsoleWrite($IndxRealSizeArr[0] & ": " & $IndxRealSizeArr[$k] & @CRLF)
 				ConsoleWrite($IndxFileFlagsArr[0] & ": " & $IndxFileFlagsArr[$k] & @CRLF)
+				ConsoleWrite($IndxReparseTagArr[0] & ": " & $IndxReparseTagArr[$k] & @CRLF)
 				ConsoleWrite($IndxNameSpaceArr[0] & ": " & $IndxNameSpaceArr[$k] & @CRLF)
 				ConsoleWrite($IndxSubNodeVCNArr[0] & ": " & $IndxSubNodeVCNArr[$k] & @CRLF)
 			Next
@@ -2093,6 +2097,7 @@ If $AttributesArr[10][2] = "TRUE" Then; $INDEX_ALLOCATION
 				ConsoleWrite($IndxAllocSizeArr[0] & ": " & $IndxAllocSizeArr[$j] & @CRLF)
 				ConsoleWrite($IndxRealSizeArr[0] & ": " & $IndxRealSizeArr[$j] & @CRLF)
 				ConsoleWrite($IndxFileFlagsArr[0] & ": " & $IndxFileFlagsArr[$j] & @CRLF)
+				ConsoleWrite($IndxReparseTagArr[0] & ": " & $IndxReparseTagArr[$j] & @CRLF)
 				ConsoleWrite($IndxNameSpaceArr[0] & ": " & $IndxNameSpaceArr[$j] & @CRLF)
 				ConsoleWrite($IndxSubNodeVCNArr[0] & ": " & $IndxSubNodeVCNArr[$j] & @CRLF)
 			Next
@@ -2469,6 +2474,8 @@ Func _GetReparseType($ReparseType)
 	;http://msdn.microsoft.com/en-us/library/dd541667(v=prot.10).aspx
 	;http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
 	Select
+		Case $ReparseType = '0x00000000'
+			Return 'ZERO'
 		Case $ReparseType = '0x80000005'
 			Return 'DRIVER_EXTENDER'
 		Case $ReparseType = '0x80000006'
@@ -2501,31 +2508,42 @@ Func _GetReparseType($ReparseType)
 EndFunc
 
 Func _Get_ReparsePoint($Entry,$Current_Attrib_Number,$CurrentAttributeName)
-	Local $LocalAttributeOffset = 1,$ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseSubstititeNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ReparseSubstititeName,$ReparsePrintName
+	Local $LocalAttributeOffset = 1,$GuidPresent=0,$ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseGuid,$ReparseSubstituteNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ReparseSubstituteName,$ReparsePrintName
 	$ReparseType = StringMid($Entry,$LocalAttributeOffset,8)
-	$ReparseType = "0x"& _SwapEndian($ReparseType)
+	$ReparseType = _SwapEndian($ReparseType)
+	If Dec(StringMid($ReparseType,1,2)) < 128 Then ;Non-Microsoft - GUID exist
+		$GuidPresent = 1
+	EndIf
+	$ReparseType = "0x" & $ReparseType
 	$ReparseType = _GetReparseType($ReparseType)
 	$ReparseDataLength = StringMid($Entry,$LocalAttributeOffset+8,4)
 	$ReparseDataLength = Dec(_SwapEndian($ReparseDataLength),2)
 	$ReparsePadding = StringMid($Entry,$LocalAttributeOffset+12,4)
-	$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
-	$ReparseSubstititeNameOffset = StringMid($ReparseData,1,4)
-	$ReparseSubstititeNameOffset = Dec(_SwapEndian($ReparseSubstititeNameOffset),2)
+	If $GuidPresent Then
+		$ReparseGuid = StringMid($Entry,$LocalAttributeOffset+16,32)
+		$ReparseGuid = _HexToGuidStr($ReparseGuid,1)
+		$ReparseData = StringMid($Entry,$LocalAttributeOffset+48,$ReparseDataLength*2)
+	Else
+		$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
+	EndIf
+;	$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
+	$ReparseSubstituteNameOffset = StringMid($ReparseData,1,4)
+	$ReparseSubstituteNameOffset = Dec(_SwapEndian($ReparseSubstituteNameOffset),2)
 	$ReparseSubstituteNameLength = StringMid($ReparseData,5,4)
 	$ReparseSubstituteNameLength = Dec(_SwapEndian($ReparseSubstituteNameLength),2)
 	$ReparsePrintNameOffset = StringMid($ReparseData,9,4)
 	$ReparsePrintNameOffset = Dec(_SwapEndian($ReparsePrintNameOffset),2)
 	$ReparsePrintNameLength = StringMid($ReparseData,13,4)
 	$ReparsePrintNameLength = Dec(_SwapEndian($ReparsePrintNameLength),2)
-	;-----if $ReparseSubstititeNameOffset<>0 then the order is reversed and parsed from end of $ReparseData ????????
+	;-----if $ReparseSubstituteNameOffset<>0 then the order is reversed and parsed from end of $ReparseData ????????
 	If StringMid($ReparseData,1,4) <> "0000" Then
-		$ReparseSubstititeName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2),$ReparseSubstituteNameLength*2)
-		$ReparseSubstititeName = BinaryToString("0x"&$ReparseSubstititeName,2)
+		$ReparseSubstituteName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2),$ReparseSubstituteNameLength*2)
+		$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
 		$ReparsePrintName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2)-($ReparsePrintNameLength*2),$ReparsePrintNameLength*2)
 		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
 	Else
-		$ReparseSubstititeName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
-		$ReparseSubstititeName = BinaryToString("0x"&$ReparseSubstititeName,2)
+		$ReparseSubstituteName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
+		$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
 		$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+32)+($ReparsePrintNameOffset*2),$ReparsePrintNameLength*2)
 		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
 	EndIf
@@ -2534,12 +2552,13 @@ Func _Get_ReparsePoint($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$RPArr[2][$Current_Attrib_Number] = $ReparseType
 	$RPArr[3][$Current_Attrib_Number] = $ReparseDataLength
 	$RPArr[4][$Current_Attrib_Number] = $ReparsePadding
-	$RPArr[5][$Current_Attrib_Number] = $ReparseSubstititeNameOffset
-	$RPArr[6][$Current_Attrib_Number] = $ReparseSubstituteNameLength
-	$RPArr[7][$Current_Attrib_Number] = $ReparsePrintNameOffset
-	$RPArr[8][$Current_Attrib_Number] = $ReparsePrintNameLength
-	$RPArr[9][$Current_Attrib_Number] = $ReparseSubstititeName
-	$RPArr[10][$Current_Attrib_Number] = $ReparsePrintName
+	$RPArr[5][$Current_Attrib_Number] = $ReparseGuid
+	$RPArr[6][$Current_Attrib_Number] = $ReparseSubstituteNameOffset
+	$RPArr[7][$Current_Attrib_Number] = $ReparseSubstituteNameLength
+	$RPArr[8][$Current_Attrib_Number] = $ReparsePrintNameOffset
+	$RPArr[9][$Current_Attrib_Number] = $ReparsePrintNameLength
+	$RPArr[10][$Current_Attrib_Number] = $ReparseSubstituteName
+	$RPArr[11][$Current_Attrib_Number] = $ReparsePrintName
 EndFunc
 
 Func _Get_EaInformation($Entry,$Current_Attrib_Number,$CurrentAttributeName)
@@ -2815,9 +2834,16 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$Indx_AllocSize = Dec(StringMid($Indx_AllocSize,15,2) & StringMid($Indx_AllocSize,13,2) & StringMid($Indx_AllocSize,11,2) & StringMid($Indx_AllocSize,9,2) & StringMid($Indx_AllocSize,7,2) & StringMid($Indx_AllocSize,5,2) & StringMid($Indx_AllocSize,3,2) & StringMid($Indx_AllocSize,1,2))
 	$Indx_RealSize = StringMid($Entry,$NewLocalAttributeOffset+128,16)
 	$Indx_RealSize = Dec(StringMid($Indx_RealSize,15,2) & StringMid($Indx_RealSize,13,2) & StringMid($Indx_RealSize,11,2) & StringMid($Indx_RealSize,9,2) & StringMid($Indx_RealSize,7,2) & StringMid($Indx_RealSize,5,2) & StringMid($Indx_RealSize,3,2) & StringMid($Indx_RealSize,1,2))
-	$Indx_File_Flags = StringMid($Entry,$NewLocalAttributeOffset+144,16)
-	$Indx_File_Flags = StringMid(_SwapEndian($Indx_File_Flags),9,8)
+;	$Indx_File_Flags = StringMid($Entry,$NewLocalAttributeOffset+144,16)
+;	ConsoleWrite("Unknown INDX flag: " & StringLen($Indx_File_Flags) & @CRLF)
+;	ConsoleWrite("Unknown INDX flag: " & $Indx_File_Flags & @CRLF)
+;	ConsoleWrite("Unknown INDX flag: " & StringMid($Indx_File_Flags,1,8) & @CRLF)
+	$Indx_File_Flags = StringMid($Entry,$NewLocalAttributeOffset+144,8)
+	$Indx_File_Flags = _SwapEndian($Indx_File_Flags)
 	$Indx_File_Flags = _File_Attributes("0x" & $Indx_File_Flags)
+	$Indx_ReparseTag = StringMid($Entry,$NewLocalAttributeOffset+152,8)
+	$Indx_ReparseTag = _SwapEndian($Indx_ReparseTag)
+	$Indx_ReparseTag = _GetReparseType("0x"&$Indx_ReparseTag)
 	$Indx_NameLength = StringMid($Entry,$NewLocalAttributeOffset+160,2)
 	$Indx_NameLength = Dec($Indx_NameLength)
 	$Indx_NameSpace = StringMid($Entry,$NewLocalAttributeOffset+162,2)
@@ -2864,6 +2890,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	ReDim $IndxAllocSizeArr[1+$EntryCounter]
 	ReDim $IndxRealSizeArr[1+$EntryCounter]
 	ReDim $IndxFileFlagsArr[1+$EntryCounter]
+	ReDim $IndxReparseTagArr[1+$EntryCounter]
 	ReDim $IndxFileNameArr[1+$EntryCounter]
 	ReDim $IndxNameSpaceArr[1+$EntryCounter]
 	ReDim $IndxSubNodeVCNArr[1+$EntryCounter]
@@ -2880,6 +2907,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$IndxAllocSizeArr[$EntryCounter] = $Indx_AllocSize
 	$IndxRealSizeArr[$EntryCounter] = $Indx_RealSize
 	$IndxFileFlagsArr[$EntryCounter] = $Indx_File_Flags
+	$IndxReparseTagArr[$EntryCounter] = $Indx_ReparseTag
 	$IndxFileNameArr[$EntryCounter] = $Indx_FileName
 	$IndxNameSpaceArr[$EntryCounter] = $Indx_NameSpace
 	$IndxSubNodeVCNArr[$EntryCounter] = $SubNodeVCN
@@ -2960,12 +2988,21 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$Indx_RealSize = StringMid($Entry,$NextEntryOffset+128,16)
 		$Indx_RealSize = Dec(StringMid($Indx_RealSize,15,2) & StringMid($Indx_RealSize,13,2) & StringMid($Indx_RealSize,11,2) & StringMid($Indx_RealSize,9,2) & StringMid($Indx_RealSize,7,2) & StringMid($Indx_RealSize,5,2) & StringMid($Indx_RealSize,3,2) & StringMid($Indx_RealSize,1,2))
 ;		ConsoleWrite("$Indx_RealSize = " & $Indx_RealSize & @crlf)
-		$Indx_File_Flags = StringMid($Entry,$NextEntryOffset+144,16)
+;		$Indx_File_Flags = StringMid($Entry,$NextEntryOffset+144,16)
+;		ConsoleWrite("Unknown INDX flag: " & StringLen($Indx_File_Flags) & @CRLF)
+;		ConsoleWrite("Unknown INDX flag: " & $Indx_File_Flags & @CRLF)
+;		ConsoleWrite("Unknown INDX flag: " & StringMid($Indx_File_Flags,1,8) & @CRLF)
 ;		ConsoleWrite("$Indx_File_Flags = " & $Indx_File_Flags & @crlf)
 ;		ConsoleWrite("$Indx_File_Flags = " & $Indx_File_Flags & @crlf)
-		$Indx_File_Flags = StringMid(_SwapEndian($Indx_File_Flags),9,8)
+;		$Indx_File_Flags = StringMid(_SwapEndian($Indx_File_Flags),9,8)
+;		$Indx_File_Flags = _File_Attributes("0x" & $Indx_File_Flags)
+;		ConsoleWrite("$Indx_File_Flags = " & $Indx_File_Flags & @crlf)
+		$Indx_File_Flags = StringMid($Entry,$NextEntryOffset+144,8)
+		$Indx_File_Flags = _SwapEndian($Indx_File_Flags)
 		$Indx_File_Flags = _File_Attributes("0x" & $Indx_File_Flags)
-;		ConsoleWrite("$Indx_File_Flags = " & $Indx_File_Flags & @crlf)
+		$Indx_ReparseTag = StringMid($Entry,$NextEntryOffset+152,8)
+		$Indx_ReparseTag = _SwapEndian($Indx_ReparseTag)
+		$Indx_ReparseTag = _GetReparseType("0x"&$Indx_ReparseTag)
 		$Indx_NameLength = StringMid($Entry,$NextEntryOffset+160,2)
 		$Indx_NameLength = Dec($Indx_NameLength)
 ;		ConsoleWrite("$Indx_NameLength = " & $Indx_NameLength & @crlf)
@@ -3023,6 +3060,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		ReDim $IndxAllocSizeArr[1+$EntryCounter]
 		ReDim $IndxRealSizeArr[1+$EntryCounter]
 		ReDim $IndxFileFlagsArr[1+$EntryCounter]
+		ReDim $IndxReparseTagArr[1+$EntryCounter]
 		ReDim $IndxFileNameArr[1+$EntryCounter]
 		ReDim $IndxNameSpaceArr[1+$EntryCounter]
 		ReDim $IndxSubNodeVCNArr[1+$EntryCounter]
@@ -3039,6 +3077,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$IndxAllocSizeArr[$EntryCounter] = $Indx_AllocSize
 		$IndxRealSizeArr[$EntryCounter] = $Indx_RealSize
 		$IndxFileFlagsArr[$EntryCounter] = $Indx_File_Flags
+		$IndxReparseTagArr[$EntryCounter] = $Indx_ReparseTag
 		$IndxFileNameArr[$EntryCounter] = $Indx_FileName
 		$IndxNameSpaceArr[$EntryCounter] = $Indx_NameSpace
 		$IndxSubNodeVCNArr[$EntryCounter] = $SubNodeVCN
