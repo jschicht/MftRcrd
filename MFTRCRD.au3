@@ -1,10 +1,11 @@
 #RequireAdmin
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Icon=..\..\..\Program Files (x86)\autoit-v3.3.14.2\Icons\au3.ico
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.37
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.38
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -91,7 +92,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.37" & @CRLF)
+ConsoleWrite("Version 1.0.0.38" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -908,17 +909,20 @@ While 1
 				_Decode_AttrDef($CoreDataChunk)
 			EndIf
 		Case $AttributeType = $INDEX_ROOT
-			$INDEX_ROOT_ON = "TRUE"
+;			$INDEX_ROOT_ON = "TRUE"
 			$INDEXROOT_Number += 1
 			ReDim $IRArr[12][$INDEXROOT_Number+1]
 			$CoreIndexRoot = _GetAttributeEntry(StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
 			$CoreIndexRootChunk = $CoreIndexRoot[0]
 			$CoreIndexRootName = $CoreIndexRoot[1]
-			_Get_IndexRoot($CoreIndexRootChunk,$INDEXROOT_Number,$CoreIndexRootName)
+			If $CoreIndexRootName = "$I30" Then
+				$INDEX_ROOT_ON = "TRUE"
+				_Get_IndexRoot($CoreIndexRootChunk,$INDEXROOT_Number,$CoreIndexRootName)
+			EndIf
 			ReDim $HexDumpIndexRoot[$INDEXROOT_Number]
 			_Arrayadd($HexDumpIndexRoot,StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
 		Case $AttributeType = $INDEX_ALLOCATION
-			$INDEX_ALLOCATION_ON = "TRUE"
+;			$INDEX_ALLOCATION_ON = "TRUE"
 			$INDEXALLOC_Number += 1
 ;			ReDim $IndxArr[20][$INDEXALLOC_Number+1]
 			ReDim $HexDumpIndxRecord[$INDEXALLOC_Number]
@@ -926,7 +930,10 @@ While 1
 			$CoreIndexAllocationChunk = $CoreIndexAllocation[0]
 			$CoreIndexAllocationName = $CoreIndexAllocation[1]
 			_Arrayadd($HexDumpIndxRecord,$CoreIndexAllocationChunk)
-			If $CoreIndexAllocationName = "$I30" Then _Get_IndexAllocation($CoreIndexAllocationChunk,$INDEXALLOC_Number,$CoreIndexAllocationName)
+			If $CoreIndexAllocationName = "$I30" Then
+				$INDEX_ALLOCATION_ON = "TRUE"
+				_Get_IndexAllocation($CoreIndexAllocationChunk,$INDEXALLOC_Number,$CoreIndexAllocationName)
+			EndIf
 			ReDim $HexDumpIndexAllocation[$INDEXALLOC_Number]
 			_Arrayadd($HexDumpIndexAllocation,StringMid($MFTEntry,$AttributeOffset,$AttributeSize*2))
 		Case $AttributeType = $BITMAP
@@ -2005,12 +2012,12 @@ If $AttributesArr[8][2] = "TRUE" Then; $DATA
 		ConsoleWrite("$DATA " & $p & ":" & @CRLF)
 		If $DataArr[2][$p] = "01" Then
 			For $j = 1 To 20
-				If $j = 1 Or $j = 4 Or $j = 10 Or $j = 15 Or ($j > 6 And $j < 11)Then ContinueLoop
+				If ($j = 1 Or $j = 4 Or $j = 10 Or $j = 15 Or ($j > 6 And $j < 11)) Then ContinueLoop
 				ConsoleWrite($DataArr[$j][0] & ": " & $DataArr[$j][$p] & @CRLF)
 			Next
 		ElseIf $DataArr[2][$p] = "00" Then
 			For $j = 1 To 20
-				If $j = 1 Or $j = 4 Or $j = 10 Or $j = 15 Or ($j > 10 And $j < 20)Then ContinueLoop
+				If ($j = 1 Or $j = 4 Or $j = 10 Or $j = 15 Or ($j > 10 And $j < 20)) Then ContinueLoop
 				ConsoleWrite($DataArr[$j][0] & ": " & $DataArr[$j][$p] & @CRLF)
 			Next
 		EndIf
@@ -2693,8 +2700,8 @@ Func _Get_IndexRoot($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$IRArr[9][$Current_Attrib_Number] = $AllocatedSizeOfEntries
 	$IRArr[10][$Current_Attrib_Number] = $Flags
 ;	$IRArr[11][$Current_Attrib_Number] = $IRPadding2
-	If $ResidentIndx And $AttributeType=$FILE_NAME Then
-		$TheResidentIndexEntry = StringMid($Entry,$LocalAttributeOffset+64)
+	If $AttributeType=$FILE_NAME Then
+		$TheResidentIndexEntry = StringMid($Entry,$LocalAttributeOffset+64,($TotalSizeOfEntries*2)-64)
 		_DecodeIndxEntries($TheResidentIndexEntry,$Current_Attrib_Number,$CurrentAttributeName)
 	EndIf
 EndFunc
@@ -2780,7 +2787,7 @@ Func _DecodeIndxEntries($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 ;	ConsoleWrite("Starting function _DecodeIndxEntries()" & @crlf)
 	Local $LocalAttributeOffset = 1,$NewLocalAttributeOffset,$IndxHdrMagic,$IndxHdrUpdateSeqArrOffset,$IndxHdrUpdateSeqArrSize,$IndxHdrLogFileSequenceNo,$IndxHdrVCNOfIndx,$IndxHdrOffsetToIndexEntries,$IndxHdrSizeOfIndexEntries,$IndxHdrAllocatedSizeOfIndexEntries
 	Local $IndxHdrFlag,$IndxHdrPadding,$IndxHdrUpdateSequence,$IndxHdrUpdSeqArr,$IndxHdrUpdSeqArrPart0,$IndxHdrUpdSeqArrPart1,$IndxHdrUpdSeqArrPart2,$IndxHdrUpdSeqArrPart3,$IndxRecordEnd4,$IndxRecordEnd1,$IndxRecordEnd2,$IndxRecordEnd3,$IndxRecordEnd4
-	Local $FileReference,$IndexEntryLength,$StreamLength,$Flags,$Stream,$SubNodeVCN,$tmp0=0,$tmp1=0,$tmp2=0,$tmp3=0,$EntryCounter=1,$Padding2,$EntryCounter=1
+	Local $FileReference,$IndexEntryLength,$StreamLength,$Flags,$Stream,$SubNodeVCN,$tmp0=0,$tmp1=0,$tmp2=0,$tmp3=0,$Padding2,$EntryCounter=UBound($IndxFileNameArr)
 	$NewLocalAttributeOffset = 1
 	$MFTReference = StringMid($Entry,$NewLocalAttributeOffset,12)
 	$MFTReference = StringMid($MFTReference,7,2)&StringMid($MFTReference,5,2)&StringMid($MFTReference,3,2)&StringMid($MFTReference,1,2)

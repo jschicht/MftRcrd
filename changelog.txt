@@ -1,3 +1,6 @@
+v1.0.0.38
+Fixed bug that caused only one or the other of $INDEX_ROOT/$INDEX_ALLOCATION to be evaluated for directory content.
+
 v1.0.0.37
 Added missing flag for FILE_ATTRIBUTE_EA.
 Added missing flags for IO_REPARSE_TAG_FILE_PLACEHOLDER and IO_REPARSE_TAG_WOF.
