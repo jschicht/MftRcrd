@@ -5,7 +5,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.40
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.41
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -95,7 +95,7 @@ Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
 ConsoleWrite("Starting MftRcrd by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.40" & @CRLF)
+ConsoleWrite("Version 1.0.0.41" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -2992,7 +2992,9 @@ Func _Get_IndexRoot($Entry,$Current_Attrib_Number,$CurrentAttributeName,$IndxTyp
 	$TheResidentIndexEntry = StringMid($Entry,$LocalAttributeOffset+64,($TotalSizeOfEntries*2)-64)
 	Select
 		Case $IndxType = 1
-			_DecodeIndxEntries($TheResidentIndexEntry,$Current_Attrib_Number,$CurrentAttributeName)
+			If StringLen($TheResidentIndexEntry) > 140 Then
+				_DecodeIndxEntries($TheResidentIndexEntry,$Current_Attrib_Number,$CurrentAttributeName)
+			EndIf
 		Case $IndxType = 2
 			_Decode_ObjId_O($TheResidentIndexEntry)
 	EndSelect

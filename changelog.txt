@@ -1,4 +1,7 @@
 
+v1.0.0.41
+Fixed a small bug in the handling of $INDEX_ROOT attribute with zero $I30 entries. 
+
 v1.0.0.40
 Added missing reparse tags.
 Fix bug in decode of $REPARSE_POINT attribute with type WCI.
