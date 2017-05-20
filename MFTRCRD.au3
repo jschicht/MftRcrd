@@ -5,7 +5,7 @@
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Comment=Quick $MFT record dump and decode
 #AutoIt3Wrapper_Res_Description=Decode any given file's $MFT record
-#AutoIt3Wrapper_Res_Fileversion=1.0.0.39
+#AutoIt3Wrapper_Res_Fileversion=1.0.0.40
 #AutoIt3Wrapper_Res_LegalCopyright=Joakim Schicht
 #AutoIt3Wrapper_Res_requestedExecutionLevel=asInvoker
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -94,8 +94,8 @@ Global $NeedLock = 0
 Global $FormattedTimestamp
 Global $Timerstart = TimerInit()
 ConsoleWrite("" & @CRLF)
-ConsoleWrite("Starting MFTRCRD by Joakim Schicht" & @CRLF)
-ConsoleWrite("Version 1.0.0.39" & @CRLF)
+ConsoleWrite("Starting MftRcrd by Joakim Schicht" & @CRLF)
+ConsoleWrite("Version 1.0.0.40" & @CRLF)
 ConsoleWrite("" & @CRLF)
 _validate_parameters()
 $TargetDrive = StringMid($cmdline[1],1,1)&":"
@@ -2705,11 +2705,15 @@ Func _Get_Bitmap($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 EndFunc
 
 Func _GetReparseType($ReparseType)
-	;http://msdn.microsoft.com/en-us/library/dd541667(v=prot.10).aspx
-	;http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
+	;winnt.h
+	;ntifs.h
 	Select
 		Case $ReparseType = '0x00000000'
-			Return 'ZERO'
+			Return 'RESERVED_ZERO'
+		Case $ReparseType = '0x00000001'
+			Return 'RESERVED_ONE'
+		Case $ReparseType = '0x00000002'
+			Return 'RESERVED_TWO'
 		Case $ReparseType = '0x80000005'
 			Return 'DRIVER_EXTENDER'
 		Case $ReparseType = '0x80000006'
@@ -2730,23 +2734,57 @@ Func _GetReparseType($ReparseType)
 			Return 'DEDUP'
 		Case $ReparseType = '0x80000014'
 			Return 'NFS'
-		Case $ReparseType = '0xA0000003'
-			Return 'MOUNT_POINT'
-		Case $ReparseType = '0xA000000C'
-			Return 'SYMLINK'
-		Case $ReparseType = '0xC0000004'
-			Return 'HSM'
 		Case $ReparseType = '0x80000015'
 			Return 'FILE_PLACEHOLDER'
 		Case $ReparseType = '0x80000017'
 			Return 'WOF'
+		Case $ReparseType = '0x80000018'
+			Return 'WCI'
+		Case $ReparseType = '0x80000019'
+			Return 'GLOBAL_REPARSE'
+		Case $ReparseType = '0x8000001B'
+			Return 'APPEXECLINK'
+		Case $ReparseType = '0x8000001E'
+			Return 'HFS'
+		Case $ReparseType = '0x80000020'
+			Return 'UNHANDLED'
+		Case $ReparseType = '0x80000021'
+			Return 'ONEDRIVE'
+		Case $ReparseType = '0x9000001A'
+			Return 'CLOUD'
+		Case $ReparseType = '0x9000101A'
+			Return 'CLOUD_ROOT'
+		Case $ReparseType = '0x9000201A'
+			Return 'CLOUD_ON_DEMAND'
+		Case $ReparseType = '0x9000301A'
+			Return 'CLOUD_ROOT_ON_DEMAND'
+		Case $ReparseType = '0x9000001C'
+			Return 'GVFS'
+		Case $ReparseType = '0xA0000003'
+			Return 'MOUNT_POINT'
+		Case $ReparseType = '0xA000000C'
+			Return 'SYMLINK'
+		Case $ReparseType = '0xA0000010'
+			Return 'IIS_CACHE'
+		Case $ReparseType = '0xA0000019'
+			Return 'GLOBAL_REPARSE'
+		Case $ReparseType = '0xA000001D'
+			Return 'LX_SYMLINK'
+		Case $ReparseType = '0xA000001F'
+			Return 'WCI_TOMBSTONE'
+		Case $ReparseType = '0xA0000022'
+			Return 'GVFS_TOMBSTONE'
+		Case $ReparseType = '0xC0000004'
+			Return 'HSM'
+		Case $ReparseType = '0xC0000014'
+			Return 'APPXSTRM'
 		Case Else
 			Return 'UNKNOWN(' & $ReparseType & ')'
 	EndSelect
 EndFunc
 
 Func _Get_ReparsePoint($Entry,$Current_Attrib_Number,$CurrentAttributeName)
-	Local $LocalAttributeOffset = 1,$GuidPresent=0,$ReparseType,$ReparseDataLength,$ReparsePadding,$ReparseGuid,$ReparseSubstituteNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ReparseSubstituteName,$ReparsePrintName
+	Local $LocalAttributeOffset = 1,$GuidPresent=0,$ReparseType,$ReparseData,$ReparseDataLength,$ReparsePadding,$ReparseGuid,$ReparseSubstituteNameOffset,$ReparseSubstituteNameLength,$ReparsePrintNameOffset,$ReparsePrintNameLength,$ReparseSubstituteName,$ReparsePrintName
 	$ReparseType = StringMid($Entry,$LocalAttributeOffset,8)
 	$ReparseType = _SwapEndian($ReparseType)
 	If Dec(StringMid($ReparseType,1,2)) < 128 Then ;Non-Microsoft - GUID exist
@@ -2757,33 +2795,52 @@ Func _Get_ReparsePoint($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 	$ReparseDataLength = StringMid($Entry,$LocalAttributeOffset+8,4)
 	$ReparseDataLength = Dec(_SwapEndian($ReparseDataLength),2)
 	$ReparsePadding = StringMid($Entry,$LocalAttributeOffset+12,4)
-	If $GuidPresent Then
-		$ReparseGuid = StringMid($Entry,$LocalAttributeOffset+16,32)
+	If $ReparseType = "WCI" Then
+		$ReparseGuid = StringMid($Entry,$LocalAttributeOffset+32,32)
 		$ReparseGuid = _HexToGuidStr($ReparseGuid,1)
-		$ReparseData = StringMid($Entry,$LocalAttributeOffset+48,$ReparseDataLength*2)
+		$ReparsePrintNameLength = StringMid($Entry,$LocalAttributeOffset+64,4)
+		$ReparsePrintNameLength = Dec(_SwapEndian($ReparsePrintNameLength))
+		If $ReparsePrintNameLength > 0 Then
+			$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+68),$ReparsePrintNameLength*2)
+			$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+		EndIf
 	Else
-		$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
-	EndIf
-;	$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
-	$ReparseSubstituteNameOffset = StringMid($ReparseData,1,4)
-	$ReparseSubstituteNameOffset = Dec(_SwapEndian($ReparseSubstituteNameOffset),2)
-	$ReparseSubstituteNameLength = StringMid($ReparseData,5,4)
-	$ReparseSubstituteNameLength = Dec(_SwapEndian($ReparseSubstituteNameLength),2)
-	$ReparsePrintNameOffset = StringMid($ReparseData,9,4)
-	$ReparsePrintNameOffset = Dec(_SwapEndian($ReparsePrintNameOffset),2)
-	$ReparsePrintNameLength = StringMid($ReparseData,13,4)
-	$ReparsePrintNameLength = Dec(_SwapEndian($ReparsePrintNameLength),2)
-	;-----if $ReparseSubstituteNameOffset<>0 then the order is reversed and parsed from end of $ReparseData ????????
-	If StringMid($ReparseData,1,4) <> "0000" Then
-		$ReparseSubstituteName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2),$ReparseSubstituteNameLength*2)
-		$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
-		$ReparsePrintName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2)-($ReparsePrintNameLength*2),$ReparsePrintNameLength*2)
-		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
-	Else
-		$ReparseSubstituteName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
-		$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
-		$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+32)+($ReparsePrintNameOffset*2),$ReparsePrintNameLength*2)
-		$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+		If $GuidPresent Then
+			$ReparseGuid = StringMid($Entry,$LocalAttributeOffset+16,32)
+			$ReparseGuid = _HexToGuidStr($ReparseGuid,1)
+			$ReparseData = StringMid($Entry,$LocalAttributeOffset+48,$ReparseDataLength*2)
+		Else
+			$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
+		EndIf
+	;	$ReparseData = StringMid($Entry,$LocalAttributeOffset+16,$ReparseDataLength*2)
+		$ReparseSubstituteNameOffset = StringMid($ReparseData,1,4)
+		$ReparseSubstituteNameOffset = Dec(_SwapEndian($ReparseSubstituteNameOffset),2)
+		$ReparseSubstituteNameLength = StringMid($ReparseData,5,4)
+		$ReparseSubstituteNameLength = Dec(_SwapEndian($ReparseSubstituteNameLength),2)
+		$ReparsePrintNameOffset = StringMid($ReparseData,9,4)
+		$ReparsePrintNameOffset = Dec(_SwapEndian($ReparsePrintNameOffset),2)
+		$ReparsePrintNameLength = StringMid($ReparseData,13,4)
+		$ReparsePrintNameLength = Dec(_SwapEndian($ReparsePrintNameLength),2)
+		;-----if $ReparseSubstituteNameOffset<>0 then the order is reversed and parsed from end of $ReparseData ????????
+		If StringMid($ReparseData,1,4) <> "0000" Then
+			ConsoleWrite("1: " & @crlf)
+			$ReparseSubstituteName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2),$ReparseSubstituteNameLength*2)
+			ConsoleWrite("$ReparseSubstituteName: " & @crlf)
+			ConsoleWrite(_HexEncode("0x"&$ReparseSubstituteName) & @crlf)
+			$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
+			$ReparsePrintName = StringMid($Entry,StringLen($Entry)+1-($ReparseSubstituteNameLength*2)-($ReparsePrintNameLength*2),$ReparsePrintNameLength*2)
+			ConsoleWrite("$ReparsePrintName: " & @crlf)
+			ConsoleWrite(_HexEncode("0x"&$ReparsePrintName) & @crlf)
+			$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+		Else
+			ConsoleWrite("2: " & @crlf)
+			$ReparseSubstituteName = StringMid($Entry,$LocalAttributeOffset+16+16,$ReparseSubstituteNameLength*2)
+			ConsoleWrite("$ReparseSubstituteName: " & $ReparseSubstituteName & @crlf)
+			$ReparseSubstituteName = BinaryToString("0x"&$ReparseSubstituteName,2)
+			$ReparsePrintName = StringMid($Entry,($LocalAttributeOffset+32)+($ReparsePrintNameOffset*2),$ReparsePrintNameLength*2)
+			ConsoleWrite("$ReparsePrintName: " & $ReparsePrintName & @crlf)
+			$ReparsePrintName = BinaryToString("0x"&$ReparsePrintName,2)
+		EndIf
 	EndIf
 	$RPArr[0][$Current_Attrib_Number] = "RP Number " & $Current_Attrib_Number
 	$RPArr[1][$Current_Attrib_Number] = $CurrentAttributeName
@@ -2867,6 +2924,7 @@ Func _Get_Ea($Entry,$Current_Attrib_Number,$CurrentAttributeName)
 		$NextEaValue = StringMid($Entry,$NextEaOffset+2+16+($NextEaNameLength*2),$NextEaValueLength*2)
 ;		ConsoleWrite("$NextEaName = " & $NextEaName & @crlf)
 ;		ConsoleWrite("$NextEaValue = " & $NextEaValue & @crlf)
+		If $NextEaNameLength = 0 Or $NextEaValueLength = 0 Then ExitLoop
 		ReDim $EAArr[8+$EaCounter][$Current_Attrib_Number+1]
 		Local $Counter1 = 7+($EaCounter-4)
 		Local $Counter2 = 7+($EaCounter-3)
